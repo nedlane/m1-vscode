@@ -4,3 +4,4 @@ dist/
 # Server binary is platform-specific and built with cargo, not committed.
 server/m1-lsp
 server/m1-lsp.exe
+.vscode-test/

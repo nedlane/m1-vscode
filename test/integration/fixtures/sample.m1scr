@@ -1,0 +1,5 @@
+// integration-test fixture
+local count = 0;
+local fGain = 1.5;
+local flag = true;
+count=count+1;
