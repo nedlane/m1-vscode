@@ -1,7 +1,7 @@
 {
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
-  "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus formatting, hover, go-to-definition, symbols, completion and diagnostics via the m1-lsp language server.",
+  "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
   "version": "0.1.3",
   "private": true,
   "publisher": "m1-tooling",

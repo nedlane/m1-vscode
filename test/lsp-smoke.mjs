@@ -116,6 +116,14 @@ const main = async () => {
   check(!!caps.definitionProvider, "advertises definition");
   check(!!caps.documentSymbolProvider, "advertises documentSymbol");
   check(!!caps.completionProvider, "advertises completion");
+  check(!!caps.referencesProvider, "advertises references");
+  check(!!caps.documentHighlightProvider, "advertises documentHighlight");
+  check(!!caps.foldingRangeProvider, "advertises foldingRange");
+  check(!!caps.codeActionProvider, "advertises codeAction");
+  check(
+    (caps.completionProvider?.triggerCharacters ?? []).includes("."),
+    "completion registers '.' trigger",
+  );
   check(caps.textDocumentSync !== undefined, "advertises textDocumentSync");
 
   // 2) initialized + didOpen
@@ -251,7 +259,102 @@ const main = async () => {
     [...codes].join(","),
   );
 
-  // 8) shutdown
+  // 8) references on the local `count` (decl at line 1, char 6).
+  send({
+    id: 6,
+    method: "textDocument/references",
+    params: {
+      textDocument: { uri },
+      position: { line: 1, character: 6 },
+      context: { includeDeclaration: true },
+    },
+  });
+  const refs = await waitId(6, "references");
+  check(!refs.error, "references returns without error");
+  check(
+    Array.isArray(refs.result) && refs.result.length === 3,
+    "references finds all 3 occurrences of `count`",
+    `count=${refs.result?.length}`,
+  );
+
+  // 9) documentHighlight on the same local.
+  send({
+    id: 7,
+    method: "textDocument/documentHighlight",
+    params: { textDocument: { uri }, position: { line: 1, character: 6 } },
+  });
+  const hl = await waitId(7, "documentHighlight");
+  check(!hl.error, "documentHighlight returns without error");
+  check(
+    Array.isArray(hl.result) && hl.result.length === 3,
+    "documentHighlight marks all 3 occurrences",
+    `count=${hl.result?.length}`,
+  );
+
+  // 10) foldingRange on the if-block document (badUri, opened above).
+  send({
+    id: 8,
+    method: "textDocument/foldingRange",
+    params: { textDocument: { uri: badUri } },
+  });
+  const folds = await waitId(8, "foldingRange");
+  check(!folds.error, "foldingRange returns without error");
+  check(
+    Array.isArray(folds.result) && folds.result.length >= 1,
+    "foldingRange folds the if-block",
+    `count=${folds.result?.length}`,
+  );
+
+  // 11) codeAction quick-fix for an unsupported C operator.
+  const opUri = "file:///tmp/m1-smoke/operator.m1scr";
+  const opText = "x = a==b;\n";
+  const opDiag = waitFor(
+    (m) =>
+      m.method === "textDocument/publishDiagnostics" &&
+      m.params?.uri === opUri &&
+      (m.params?.diagnostics ?? []).some(
+        (d) => d.code === "unsupported-c-token",
+      ),
+    "operator diagnostics",
+  );
+  send({
+    method: "textDocument/didOpen",
+    params: {
+      textDocument: {
+        uri: opUri,
+        languageId: "m1scr",
+        version: 1,
+        text: opText,
+      },
+    },
+  });
+  const opGot = await opDiag;
+  const cToken = opGot.params.diagnostics.find(
+    (d) => d.code === "unsupported-c-token",
+  );
+  send({
+    id: 9,
+    method: "textDocument/codeAction",
+    params: {
+      textDocument: { uri: opUri },
+      range: cToken.range,
+      context: { diagnostics: [cToken] },
+    },
+  });
+  const actions = await waitId(9, "codeAction");
+  check(!actions.error, "codeAction returns without error");
+  const quickfix = (actions.result ?? []).find((a) => /eq/.test(a.title ?? ""));
+  check(
+    !!quickfix && quickfix.kind === "quickfix",
+    "codeAction offers a `== -> eq` quick-fix",
+    JSON.stringify(actions.result)?.slice(0, 120),
+  );
+  check(
+    !!quickfix?.edit?.changes?.[opUri]?.length,
+    "quick-fix carries a WorkspaceEdit",
+  );
+
+  // 12) shutdown
   send({ id: 99, method: "shutdown", params: null });
   await waitId(99, "shutdown");
   send({ method: "exit", params: null });
