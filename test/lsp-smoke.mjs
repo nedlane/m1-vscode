@@ -200,7 +200,58 @@ const main = async () => {
   );
   check(!!diag, "server published diagnostics");
 
-  // 7) shutdown
+  // 7) intrinsic-library diagnostics: open a script that misuses the firmware
+  //    library and assert the data-driven rules fire (stateful-conditional,
+  //    integrated-only-call, deprecated-overload).
+  const badUri = "file:///tmp/m1-smoke/intrinsics.m1scr";
+  const badText = [
+    "if (ready)",
+    "{",
+    "    flag = Delay.Rising(sensor > 1.0, 5.0);", // T060 stateful-conditional
+    "}",
+    "out = PDM.GetOutput(1);", // T061 integrated-only-call
+    "h = Serial.GetTransmitHandle(2);", // T062 deprecated-overload
+    "",
+  ].join("\n");
+  const badDiag = waitFor(
+    (m) =>
+      m.method === "textDocument/publishDiagnostics" &&
+      m.params?.uri === badUri &&
+      (m.params?.diagnostics?.length ?? 0) > 0,
+    "intrinsic diagnostics",
+  );
+  send({
+    method: "textDocument/didOpen",
+    params: {
+      textDocument: {
+        uri: badUri,
+        languageId: "m1scr",
+        version: 1,
+        text: badText,
+      },
+    },
+  });
+  const got = await badDiag;
+  const codes = new Set(
+    (got.params.diagnostics ?? []).map((d) => String(d.code)),
+  );
+  check(
+    codes.has("T060"),
+    "stateful-conditional (T060) reported",
+    [...codes].join(","),
+  );
+  check(
+    codes.has("T061"),
+    "integrated-only-call (T061) reported",
+    [...codes].join(","),
+  );
+  check(
+    codes.has("T062"),
+    "deprecated-overload (T062) reported",
+    [...codes].join(","),
+  );
+
+  // 8) shutdown
   send({ id: 99, method: "shutdown", params: null });
   await waitId(99, "shutdown");
   send({ method: "exit", params: null });
