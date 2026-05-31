@@ -1,0 +1,2 @@
+// calls the user function Root.Do Thing
+Do Thing();

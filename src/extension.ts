@@ -11,8 +11,10 @@ import {
 
 let client: LanguageClient | undefined;
 let output: vscode.OutputChannel;
+let currentRoot: string | undefined;
 
 const SERVER_BIN = process.platform === "win32" ? "m1-lsp.exe" : "m1-lsp";
+const PROJECT_MARKER = "Project.m1prj";
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -25,6 +27,22 @@ export async function activate(
     vscode.commands.registerCommand("m1.restartServer", async () => {
       await stopClient();
       await startClient(context);
+    }),
+    // Re-root the server when the user moves to an .m1scr in a different project.
+    // m1-lsp loads its project once, from the initialize root, so switching
+    // projects requires a restart with the new root.
+    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+      if (editor?.document.languageId !== "m1scr") {
+        return;
+      }
+      const root = await findProjectDir(editor.document.uri);
+      if ((root?.fsPath ?? undefined) !== currentRoot) {
+        output.appendLine(
+          `Active M1 file changed project root -> ${root?.fsPath ?? "(none)"}; restarting server.`,
+        );
+        await stopClient();
+        await startClient(context);
+      }
     }),
   );
 
@@ -53,6 +71,22 @@ async function startClient(context: vscode.ExtensionContext): Promise<void> {
 
   output.appendLine(`Starting m1-lsp: ${serverPath}`);
 
+  // m1-lsp discovers its project by walking *up* from the initialize root looking
+  // for Project.m1prj; it never descends. VS Code's default root is the opened
+  // folder, which is often an ancestor of (or unrelated to) the project, so the
+  // server loads no project and features like go-to-definition return nothing.
+  // Mirror the Neovim setup (root_markers = {Project.m1prj}) by rooting the
+  // client at the project directory itself.
+  const projectDir = await findProjectDir(
+    vscode.window.activeTextEditor?.document.uri,
+  );
+  currentRoot = projectDir?.fsPath;
+  output.appendLine(
+    projectDir
+      ? `Project root: ${projectDir.fsPath}`
+      : `No ${PROJECT_MARKER} found; running without project context (go-to-definition will be limited).`,
+  );
+
   const serverOptions: ServerOptions = {
     run: { command: serverPath, transport: TransportKind.stdio },
     debug: { command: serverPath, transport: TransportKind.stdio },
@@ -64,6 +98,16 @@ async function startClient(context: vscode.ExtensionContext): Promise<void> {
       { scheme: "untitled", language: "m1scr" },
     ],
     outputChannel: output,
+    // Pin the server's root to the project dir. vscode-languageclient derives
+    // both rootUri and workspaceFolders from clientOptions.workspaceFolder when
+    // it is set, overriding the opened folder.
+    workspaceFolder: projectDir
+      ? {
+          uri: projectDir,
+          name: path.basename(projectDir.fsPath) || "m1",
+          index: 0,
+        }
+      : undefined,
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher("**/*.m1scr"),
     },
@@ -122,6 +166,54 @@ function resolveServerPath(
   const onPath = findOnPath(SERVER_BIN);
   if (onPath) {
     return onPath;
+  }
+
+  return undefined;
+}
+
+/**
+ * Locate the M1 project directory (the one containing `Project.m1prj`) so the
+ * language server can be rooted there. Resolution order:
+ *   1. Walk up from the given .m1scr file (or the first workspace folder),
+ *      matching m1-lsp's own ancestor-only discovery.
+ *   2. Fall back to a workspace-wide search, to catch a project nested *below*
+ *      the opened folder (e.g. opening a repo root whose project lives in a
+ *      subdirectory).
+ * Returns undefined when no project is found (project-less mode).
+ */
+async function findProjectDir(
+  active?: vscode.Uri,
+): Promise<vscode.Uri | undefined> {
+  const startDirs: string[] = [];
+  if (active?.scheme === "file") {
+    startDirs.push(path.dirname(active.fsPath));
+  }
+  for (const folder of vscode.workspace.workspaceFolders ?? []) {
+    startDirs.push(folder.uri.fsPath);
+  }
+
+  for (const start of startDirs) {
+    let dir = start;
+    for (;;) {
+      if (fs.existsSync(path.join(dir, PROJECT_MARKER))) {
+        return vscode.Uri.file(dir);
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) {
+        break;
+      }
+      dir = parent;
+    }
+  }
+
+  // Nested project: search the workspace for a Project.m1prj below the open folder.
+  const found = await vscode.workspace.findFiles(
+    `**/${PROJECT_MARKER}`,
+    "**/node_modules/**",
+    1,
+  );
+  if (found.length > 0) {
+    return vscode.Uri.file(path.dirname(found[0].fsPath));
   }
 
   return undefined;

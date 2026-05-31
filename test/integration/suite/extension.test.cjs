@@ -97,4 +97,41 @@ suite("m1-vscode in a real VS Code Extension Host", () => {
     assert.ok(Array.isArray(diags), "diagnostics should be an array");
     console.log(`    diagnostics on sample: ${diags.length}`);
   });
+
+  // Regression: go-to-definition needs the m1-lsp server rooted at the
+  // Project.m1prj dir. The fixtures workspace opens `fixtures/`, but the project
+  // is nested at `fixtures/proj/`. m1-lsp's `find_m1prj` only walks *ancestors*,
+  // so unless the extension discovers and roots at the nested project, the server
+  // loads no project and `goto_definition` returns null (exactly the user's bug).
+  test("go-to-definition resolves a user function to its .m1scr file", async function () {
+    this.timeout(60000);
+    const callerPath = path.resolve(__dirname, "../fixtures/proj/Caller.m1scr");
+    const caller = await vscode.workspace.openTextDocument(callerPath);
+    await vscode.window.showTextDocument(caller);
+    // Cursor on the `Do Thing()` call (line 1, col 0).
+    const line = caller
+      .getText()
+      .split("\n")
+      .findIndex((l) => l.includes("Do Thing("));
+    const pos = new vscode.Position(line, 0);
+
+    const locs = await retry(async () => {
+      const l = await vscode.commands.executeCommand(
+        "vscode.executeDefinitionProvider",
+        caller.uri,
+        pos,
+      );
+      return l && l.length ? l : null;
+    });
+    assert.ok(
+      locs && locs.length,
+      "expected a definition Location from the server (project must be loaded)",
+    );
+    const targets = locs.map((l) => (l.targetUri || l.uri).fsPath);
+    console.log("    definition targets:", JSON.stringify(targets));
+    assert.ok(
+      targets.some((t) => t.endsWith("Do Thing.m1scr")),
+      "go-to-definition should jump to the user function's backing file",
+    );
+  });
 });
