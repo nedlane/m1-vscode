@@ -34,8 +34,9 @@ end users need nothing extra (and no network).
 The server version is **pinned** in `package.json` under `m1.serverVersion`, and
 binaries come from [`m1-lsp` GitHub Releases](https://github.com/C-Nucifora/m1-lsp/releases):
 
-- **m1-lsp** (`.github/workflows/release.yml`) builds Linux/macOS/Windows binaries
-  and publishes a Release automatically whenever its crate version changes.
+- **m1-lsp** (`.github/workflows/release.yml`) builds **Linux x64**, **Windows x64**
+  and **Apple-Silicon macOS (arm64)** binaries and publishes a Release automatically
+  whenever its crate version changes. (Intel macOS is not built — see below.)
 - **m1-vscode** `sync-server.yml` (daily / manual) notices a newer m1-lsp release,
   repins `m1.serverVersion`, bumps the extension version, and pushes a tag.
 - That tag triggers `release.yml`, which fetches each platform's server binary and
@@ -54,6 +55,34 @@ node scripts/fetch-server.mjs --version v0.2.0 --target x86_64-apple-darwin
 ```
 
 (You can still set `m1.server.path` to any local build, or put `m1-lsp` on `PATH`.)
+
+### Intel macOS (`x86_64-apple-darwin`)
+
+GitHub no longer reliably provides Intel-Mac CI runners, so there is **no
+Intel-Mac VSIX and no prebuilt Intel-Mac server**. Apple-Silicon Macs are fully
+supported via the `darwin-arm64` VSIX; Intel-Mac users set it up manually (once):
+
+1. **Install the server-less universal VSIX** from the
+   [Releases](https://github.com/nedlane/m1-vscode/releases) page
+   (`m1-vscode-universal.vsix`) — it installs on any platform but bundles no
+   server:
+   ```bash
+   code --install-extension m1-vscode-universal.vsix
+   ```
+2. **Build the server** on your Mac (needs Rust — `https://rustup.rs`):
+   ```bash
+   git clone https://github.com/C-Nucifora/m1-lsp && cd m1-lsp
+   cargo build --release            # -> target/release/m1-lsp
+   ```
+3. **Point the extension at it** — in VS Code settings:
+   ```json
+   "m1.server.path": "/absolute/path/to/m1-lsp/target/release/m1-lsp"
+   ```
+   (or put that `m1-lsp` binary on your `PATH`).
+
+That's it — all language features then work identically to the bundled builds.
+The universal VSIX is also the fallback for any other uncovered platform
+(e.g. Linux arm64).
 
 ## Develop
 
