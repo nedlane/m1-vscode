@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus formatting, hover, go-to-definition, symbols, completion and diagnostics via the m1-lsp language server.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "publisher": "m1-tooling",
   "license": "UNLICENSED",
@@ -82,7 +82,9 @@
     "package": "vsce package --no-dependencies -o m1-vscode.vsix",
     "test": "node test/grammar-tokenize.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
-    "test:lsp": "node test/lsp-smoke.mjs"
+    "test:lsp": "node test/lsp-smoke.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
@@ -92,6 +94,7 @@
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^3.2.1",
     "esbuild": "^0.24.0",
+    "prettier": "^3.8.3",
     "typescript": "^5.5.0",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"

@@ -70,8 +70,18 @@ expectScope(grammar, "local f = 1.5;", "1.5", "constant.numeric.float");
 expectScope(grammar, "local h = 0xFF;", "0xFF", "constant.numeric.hex");
 expectScope(grammar, 'local s = "hi";', '"hi"', "string.quoted.double");
 expectScope(grammar, "// a comment", "// a comment", "comment.line");
-expectScope(grammar, "x = $(SEG) + 1;", "$(SEG)", "constant.other.interpolation");
-expectScope(grammar, "local <Unsigned Integer> v = 1;", "Unsigned Integer", "entity.name.type");
+expectScope(
+  grammar,
+  "x = $(SEG) + 1;",
+  "$(SEG)",
+  "constant.other.interpolation",
+);
+expectScope(
+  grammar,
+  "local <Unsigned Integer> v = 1;",
+  "Unsigned Integer",
+  "entity.name.type",
+);
 expectScope(grammar, "x = a + b;", "+", "keyword.operator");
 expectScope(grammar, "foo(a);", "foo", "entity.name.function");
 

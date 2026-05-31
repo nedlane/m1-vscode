@@ -14,7 +14,9 @@ let output: vscode.OutputChannel;
 
 const SERVER_BIN = process.platform === "win32" ? "m1-lsp.exe" : "m1-lsp";
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(
+  context: vscode.ExtensionContext,
+): Promise<void> {
   output = vscode.window.createOutputChannel("M1 Language Server");
   context.subscriptions.push(output);
 
@@ -79,7 +81,9 @@ async function startClient(context: vscode.ExtensionContext): Promise<void> {
     output.appendLine("m1-lsp started.");
   } catch (err) {
     output.appendLine(`Failed to start m1-lsp: ${String(err)}`);
-    void vscode.window.showErrorMessage(`Failed to start m1-lsp: ${String(err)}`);
+    void vscode.window.showErrorMessage(
+      `Failed to start m1-lsp: ${String(err)}`,
+    );
   }
 }
 
@@ -96,7 +100,9 @@ async function stopClient(): Promise<void> {
  *   2. A binary bundled under the extension's `server/` directory.
  *   3. `m1-lsp` discovered on the system PATH.
  */
-function resolveServerPath(context: vscode.ExtensionContext): string | undefined {
+function resolveServerPath(
+  context: vscode.ExtensionContext,
+): string | undefined {
   const configured = vscode.workspace
     .getConfiguration("m1")
     .get<string>("server.path");

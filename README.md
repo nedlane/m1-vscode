@@ -50,10 +50,10 @@ Press `F5` in VS Code to launch an Extension Development Host.
 
 ## Settings
 
-| Setting            | Default | Description                                  |
-|--------------------|---------|----------------------------------------------|
-| `m1.server.path`   | `""`    | Absolute path to the `m1-lsp` binary.        |
-| `m1.trace.server`  | `off`   | Trace LSP traffic (`off`/`messages`/`verbose`). |
+| Setting           | Default | Description                                     |
+| ----------------- | ------- | ----------------------------------------------- |
+| `m1.server.path`  | `""`    | Absolute path to the `m1-lsp` binary.           |
+| `m1.trace.server` | `off`   | Trace LSP traffic (`off`/`messages`/`verbose`). |
 
 ## Commands
 

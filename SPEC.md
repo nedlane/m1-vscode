@@ -10,20 +10,21 @@ the existing Neovim integration, by reusing the existing `m1-lsp` language serve
 The M1 toolchain already exposes its language intelligence through `m1-lsp`, a
 standard LSP server (`tower_lsp`) communicating over **stdio**. It advertises:
 
-| Capability            | Source            | LSP method                         |
-|-----------------------|-------------------|------------------------------------|
-| Formatting            | `m1-fmt`          | `textDocument/formatting`          |
-| Hover / type info     | `m1-core` + types | `textDocument/hover`               |
-| Go-to-definition      | `m1-lsp`          | `textDocument/definition`          |
-| Document symbols      | `m1-lsp`          | `textDocument/documentSymbol`      |
-| Completion            | `m1-lsp`          | `textDocument/completion`          |
-| Diagnostics           | `m1-lint`, types  | `textDocument/publishDiagnostics`  |
+| Capability        | Source            | LSP method                        |
+| ----------------- | ----------------- | --------------------------------- |
+| Formatting        | `m1-fmt`          | `textDocument/formatting`         |
+| Hover / type info | `m1-core` + types | `textDocument/hover`              |
+| Go-to-definition  | `m1-lsp`          | `textDocument/definition`         |
+| Document symbols  | `m1-lsp`          | `textDocument/documentSymbol`     |
+| Completion        | `m1-lsp`          | `textDocument/completion`         |
+| Diagnostics       | `m1-lint`, types  | `textDocument/publishDiagnostics` |
 
 Because VS Code is an LSP client, **every one of these works in VS Code with no
 server changes** — they are delivered the moment a client extension launches the
 server and points it at `.m1scr` documents.
 
 The only Neovim-specific pieces are:
+
 1. **Syntax highlighting** — provided in Neovim by `tree-sitter-m1` queries
    (`highlights.scm`). Stock VS Code does not consume nvim-treesitter grammars,
    so highlighting must be re-expressed as a **TextMate grammar**.
@@ -37,6 +38,7 @@ features remain in `m1-lsp`.
 ## Scope
 
 In scope:
+
 - `m1scr` language registration + `.m1scr` file association.
 - Language configuration (comments `//` `/* */`, brackets, auto-closing, indent).
 - TextMate grammar mirroring `tree-sitter-m1/queries/highlights.scm`.
@@ -48,6 +50,7 @@ In scope:
 - Packaging to `.vsix`; CI to build + typecheck + package.
 
 Out of scope (future):
+
 - Semantic-tokens highlighting in `m1-lsp` (would let both editors share one
   highlight source; noted as a follow-up, not required for parity).
 - Marketplace publishing (this is a private internal extension).

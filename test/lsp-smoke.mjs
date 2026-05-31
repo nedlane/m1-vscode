@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const serverPath =
-  process.argv[2] || path.join(here, "..", "server", "m1-lsp");
+const serverPath = process.argv[2] || path.join(here, "..", "server", "m1-lsp");
 
 const proc = spawn(serverPath, [], { stdio: ["pipe", "pipe", "pipe"] });
 proc.stderr.on("data", (d) => process.stderr.write(`[server] ${d}`));
@@ -140,7 +139,18 @@ const main = async () => {
     hover.result?.contents?.value ??
     (typeof hover.result?.contents === "string" ? hover.result.contents : "");
   check(!hover.error && hover.result != null, "hover returns a result");
-  check(/type/i.test(hoverVal) || hoverVal.length > 0, "hover has content", hoverVal);
+  check(
+    /type/i.test(hoverVal) || hoverVal.length > 0,
+    "hover has content",
+    hoverVal,
+  );
+  // The bundled server is built from m1-lsp main, which infers local types from
+  // their initializer — `local count = 0` must resolve to Integer, not Unknown.
+  check(
+    /Integer/.test(hoverVal) && !/Unknown/.test(hoverVal),
+    "hover infers Integer for `local count = 0` (bundled server has type inference)",
+    hoverVal,
+  );
   console.log(`        hover: ${JSON.stringify(hoverVal).slice(0, 120)}`);
 
   // 4) formatting
@@ -168,7 +178,11 @@ const main = async () => {
   });
   const syms = await waitId(4, "documentSymbol");
   check(!syms.error, "documentSymbol returns without error");
-  check(Array.isArray(syms.result), "documentSymbol returns an array", `count=${syms.result?.length}`);
+  check(
+    Array.isArray(syms.result),
+    "documentSymbol returns an array",
+    `count=${syms.result?.length}`,
+  );
 
   // 6) completion
   send({
