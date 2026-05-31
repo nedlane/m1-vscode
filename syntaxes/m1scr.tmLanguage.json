@@ -1,0 +1,121 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "M1 Script",
+  "scopeName": "source.m1scr",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#interpolation" },
+    { "include": "#type-annotation" },
+    { "include": "#numbers" },
+    { "include": "#booleans" },
+    { "include": "#keywords" },
+    { "include": "#word-operators" },
+    { "include": "#function-call" },
+    { "include": "#property" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.m1scr",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.m1scr",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.m1scr",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "constant.character.escape.m1scr", "match": "\\\\." }
+      ]
+    },
+    "interpolation": {
+      "name": "constant.other.interpolation.m1scr",
+      "match": "\\$\\([^)]*\\)"
+    },
+    "type-annotation": {
+      "match": "(<)\\s*([A-Za-z][A-Za-z0-9 ]*?)\\s*(>)",
+      "captures": {
+        "1": { "name": "punctuation.definition.typeannotation.begin.m1scr" },
+        "2": { "name": "entity.name.type.m1scr" },
+        "3": { "name": "punctuation.definition.typeannotation.end.m1scr" }
+      }
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.m1scr",
+          "match": "\\b0[xX][0-9a-fA-F]+[uU]?\\b"
+        },
+        {
+          "name": "constant.numeric.float.m1scr",
+          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.float.m1scr",
+          "match": "\\b\\d+[eE][+-]?\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.m1scr",
+          "match": "\\b\\d+[uU]?\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "name": "constant.language.boolean.m1scr",
+      "match": "\\b(true|false)\\b"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "storage.modifier.m1scr",
+          "match": "\\b(local|static)\\b"
+        },
+        {
+          "name": "keyword.control.conditional.m1scr",
+          "match": "\\b(if|else|when|is)\\b"
+        },
+        {
+          "name": "keyword.control.loop.m1scr",
+          "match": "\\b(expand|to)\\b"
+        }
+      ]
+    },
+    "word-operators": {
+      "name": "keyword.operator.word.m1scr",
+      "match": "\\b(and|or|not|eq|neq)\\b"
+    },
+    "function-call": {
+      "patterns": [
+        {
+          "match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+          "name": "entity.name.function.m1scr"
+        }
+      ]
+    },
+    "property": {
+      "match": "(?<=\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)",
+      "name": "variable.other.property.m1scr"
+    },
+    "operators": {
+      "name": "keyword.operator.m1scr",
+      "match": "\\+=|-=|\\*=|/=|<<|>>|<=|>=|==|!=|&&|\\|\\||[-+*/%<>=&|\\^!?:]"
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.section.block.m1scr", "match": "[{}]" },
+        { "name": "punctuation.parenthesis.m1scr", "match": "[()]" },
+        { "name": "punctuation.delimiter.m1scr", "match": "[.,;]" }
+      ]
+    }
+  }
+}

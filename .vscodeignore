@@ -1,0 +1,15 @@
+.vscode/**
+.github/**
+src/**
+node_modules/**
+test/**
+**/*.ts
+**/*.map
+esbuild.mjs
+tsconfig.json
+SPEC.md
+PLAN.md
+.gitignore
+.editorconfig
+**/.DS_Store
+# Keep: dist/, syntaxes/, language-configuration.json, server/, README.md, package.json

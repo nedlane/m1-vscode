@@ -1,0 +1,99 @@
+{
+  "name": "m1-vscode",
+  "displayName": "M1 Script (.m1scr)",
+  "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus formatting, hover, go-to-definition, symbols, completion and diagnostics via the m1-lsp language server.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "m1-tooling",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters",
+    "Linters"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nedlane/m1-vscode.git"
+  },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:m1scr"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "m1scr",
+        "aliases": [
+          "M1 Script",
+          "m1scr"
+        ],
+        "extensions": [
+          ".m1scr"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "m1scr",
+        "scopeName": "source.m1scr",
+        "path": "./syntaxes/m1scr.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "m1.restartServer",
+        "title": "M1: Restart Language Server"
+      },
+      {
+        "command": "m1.showOutput",
+        "title": "M1: Show Language Server Output"
+      }
+    ],
+    "configuration": {
+      "title": "M1",
+      "properties": {
+        "m1.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the m1-lsp server binary. If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-lsp' on PATH."
+        },
+        "m1.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace the communication between VS Code and the m1-lsp server."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc --noEmit",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "vscode:prepublish": "node esbuild.mjs --production",
+    "package": "vsce package --no-dependencies -o m1-vscode.vsix",
+    "test": "node test/grammar-tokenize.mjs && node test/lsp-smoke.mjs",
+    "test:grammar": "node test/grammar-tokenize.mjs",
+    "test:lsp": "node test/lsp-smoke.mjs"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.5.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  }
+}
