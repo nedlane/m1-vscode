@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus formatting, hover, go-to-definition, symbols, completion and diagnostics via the m1-lsp language server.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "publisher": "m1-tooling",
   "license": "UNLICENSED",
@@ -20,7 +20,7 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.2.0"
+    "serverVersion": "v0.3.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
