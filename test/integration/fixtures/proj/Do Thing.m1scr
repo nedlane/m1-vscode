@@ -1,0 +1,2 @@
+// user function body (go-to-definition target)
+local result = 1;
