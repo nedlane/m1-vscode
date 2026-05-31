@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<Project>
+  <Component Classname="BuiltIn.GroupCompound" Name="Root"/>
+  <Component Classname="BuiltIn.FuncUser" Name="Root.Do Thing" Filename="Do Thing.m1scr"/>
+</Project>
