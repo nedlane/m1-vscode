@@ -48,13 +48,16 @@ In scope:
   on `PATH`.
 - Commands: restart server, show output channel.
 - Packaging to `.vsix`; CI to build + typecheck + package.
+- Automated server delivery: m1-lsp publishes per-platform release binaries; the
+  extension pins a server version, bundles the matching binary into per-platform
+  VSIXes, and auto-bumps/releases when m1-lsp ships a new version (no manual copy).
 
 Out of scope (future):
 
 - Semantic-tokens highlighting in `m1-lsp` (would let both editors share one
   highlight source; noted as a follow-up, not required for parity).
 - Marketplace publishing (this is a private internal extension).
-- Bundling per-platform server binaries in git (CI/users build with cargo).
+- Committing server binaries to git (they are fetched from m1-lsp Releases).
 
 ## Language facts (from `tree-sitter-m1/grammar.js`)
 

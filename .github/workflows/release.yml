@@ -1,0 +1,79 @@
+name: Release
+
+# Builds one VSIX per platform, each with the matching m1-lsp server binary
+# (pinned via package.json m1.serverVersion) bundled in, and publishes them to a
+# GitHub Release. Triggered by a version tag (pushed by sync-server.yml) or
+# manually.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vscodeTarget: linux-x64
+            rustTarget: x86_64-unknown-linux-gnu
+          - vscodeTarget: darwin-x64
+            rustTarget: x86_64-apple-darwin
+          - vscodeTarget: darwin-arm64
+            rustTarget: aarch64-apple-darwin
+          - vscodeTarget: win32-x64
+            rustTarget: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+
+      - name: Fetch m1-lsp server for ${{ matrix.rustTarget }}
+        env:
+          # PAT with read access to the (private) m1-lsp repo.
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: node scripts/fetch-server.mjs --target ${{ matrix.rustTarget }}
+
+      - name: Bundle extension
+        run: npm run build
+
+      - name: Package ${{ matrix.vscodeTarget }} VSIX
+        run: >-
+          npx vsce package --no-dependencies
+          --target ${{ matrix.vscodeTarget }}
+          -o m1-vscode-${{ matrix.vscodeTarget }}.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.vscodeTarget }}
+          path: m1-vscode-${{ matrix.vscodeTarget }}.vsix
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist-vsix
+          merge-multiple: true
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="manual-$(date +%Y%m%d-%H%M%S)"
+          fi
+          gh release create "$TAG" dist-vsix/*.vsix \
+            --repo "${{ github.repository }}" \
+            --title "m1-vscode $TAG" \
+            --notes "Per-platform VS Code extension builds, each bundling the pinned m1-lsp server." \
+            || gh release upload "$TAG" dist-vsix/*.vsix --repo "${{ github.repository }}" --clobber

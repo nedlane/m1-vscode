@@ -1,0 +1,61 @@
+name: Sync m1-lsp server
+
+# Watches the m1-lsp repo for a newer server release. When found, repins
+# package.json m1.serverVersion, bumps the extension version, and pushes a tag —
+# which triggers release.yml to rebuild and publish every per-platform VSIX.
+# This is what makes "m1-lsp updated -> new extension version" hands-off.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Re-release even if the server version is unchanged"
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Use the PAT so the tag push triggers release.yml (GITHUB_TOKEN pushes
+          # do not trigger other workflows).
+          token: ${{ secrets.GH_PAT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Resolve versions
+        id: v
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          REPO=$(node -p "require('./package.json').m1.serverRepo")
+          PINNED=$(node -p "require('./package.json').m1.serverVersion")
+          LATEST=$(gh release view --repo "$REPO" --json tagName -q .tagName)
+          echo "repo=$REPO"        >> "$GITHUB_OUTPUT"
+          echo "pinned=$PINNED"    >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST"    >> "$GITHUB_OUTPUT"
+          echo "m1-lsp pinned=$PINNED latest=$LATEST"
+
+      - name: Repin + bump + tag
+        if: steps.v.outputs.latest != steps.v.outputs.pinned || inputs.force
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -e
+          LATEST="${{ steps.v.outputs.latest }}"
+          node -e "const f='package.json';const p=require('./'+f);p.m1.serverVersion='$LATEST';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
+          NEWVER=$(npm version patch --no-git-tag-version | tr -d 'v')
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: bump m1-lsp server to $LATEST, release v$NEWVER"
+          git tag "v$NEWVER"
+          git push origin HEAD:main
+          git push origin "v$NEWVER"
+          echo "Tagged v$NEWVER (server $LATEST) — release.yml will build the VSIXes."

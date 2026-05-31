@@ -26,23 +26,44 @@ order:
 2. A binary bundled in the extension's `server/` directory.
 3. `m1-lsp` on your `PATH`.
 
-Build the server from the toolchain workspace:
+The released, per-platform VSIXes already **bundle** the matching server binary —
+end users need nothing extra (and no network).
+
+### How the server stays in sync (no manual copying)
+
+The server version is **pinned** in `package.json` under `m1.serverVersion`, and
+binaries come from [`m1-lsp` GitHub Releases](https://github.com/C-Nucifora/m1-lsp/releases):
+
+- **m1-lsp** (`.github/workflows/release.yml`) builds Linux/macOS/Windows binaries
+  and publishes a Release automatically whenever its crate version changes.
+- **m1-vscode** `sync-server.yml` (daily / manual) notices a newer m1-lsp release,
+  repins `m1.serverVersion`, bumps the extension version, and pushes a tag.
+- That tag triggers `release.yml`, which fetches each platform's server binary and
+  publishes one VSIX per platform (`vsce package --target …`).
+
+So a new m1-lsp version ships a new extension version with **no manual steps**.
+The only one-time setup is a repo secret `GH_PAT` (a PAT with read access to the
+private `m1-lsp` repo and push access here).
+
+### Get the server locally (replaces manual `cp`)
 
 ```bash
-cargo build --release -p m1-lsp
-# binary at: target/release/m1-lsp
+npm run server:fetch          # downloads the pinned server for your platform into server/
+# or pin/override explicitly:
+node scripts/fetch-server.mjs --version v0.2.0 --target x86_64-apple-darwin
 ```
 
-Then either set `m1.server.path` to that path, or copy it into `server/m1-lsp`
-before packaging.
+(You can still set `m1.server.path` to any local build, or put `m1-lsp` on `PATH`.)
 
 ## Develop
 
 ```bash
 npm install
+npm run server:fetch    # fetch the pinned m1-lsp server into server/
 npm run build           # bundle to dist/extension.js
 npm run compile         # tsc type-check only
-npm run package         # produce m1-vscode.vsix
+npm test                # grammar + end-to-end LSP smoke tests
+npm run package         # produce a (current-platform) m1-vscode.vsix
 code --install-extension m1-vscode.vsix
 ```
 
