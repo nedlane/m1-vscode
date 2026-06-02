@@ -85,6 +85,7 @@
     "vscode:prepublish": "node esbuild.mjs --production",
     "package": "vsce package --no-dependencies -o m1-vscode.vsix",
     "server:fetch": "node scripts/fetch-server.mjs",
+    "server:verify": "node scripts/verify-server-pin.mjs",
     "test": "node test/grammar-tokenize.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
     "test:lsp": "node test/lsp-smoke.mjs",

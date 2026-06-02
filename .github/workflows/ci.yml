@@ -7,6 +7,18 @@ on:
     branches: [main]
 
 jobs:
+  verify-server-pin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Verify pinned m1-lsp release ships server binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run server:verify
+
   build:
     runs-on: ubuntu-latest
     steps:
