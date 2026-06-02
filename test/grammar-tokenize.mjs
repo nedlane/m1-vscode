@@ -84,8 +84,18 @@ expectScope(
 );
 // Every type-annotation form the corpus uses (a single identifier, which may
 // contain spaces; M1 has no nested generics — see tree-sitter-m1 `type_annotation`).
-expectScope(grammar, "local <Boolean> b = true;", "Boolean", "entity.name.type");
-expectScope(grammar, "local <boolean> b = true;", "boolean", "entity.name.type");
+expectScope(
+  grammar,
+  "local <Boolean> b = true;",
+  "Boolean",
+  "entity.name.type",
+);
+expectScope(
+  grammar,
+  "local <boolean> b = true;",
+  "boolean",
+  "entity.name.type",
+);
 expectScope(grammar, "local <Integer> i = 0;", "Integer", "entity.name.type");
 expectScope(
   grammar,
