@@ -100,15 +100,31 @@ Press `F5` in VS Code to launch an Extension Development Host.
 
 ## Settings
 
-| Setting           | Default | Description                                     |
-| ----------------- | ------- | ----------------------------------------------- |
-| `m1.server.path`  | `""`    | Absolute path to the `m1-lsp` binary.           |
-| `m1.trace.server` | `off`   | Trace LSP traffic (`off`/`messages`/`verbose`). |
+| Setting                   | Default | Description                                                   |
+| ------------------------- | ------- | ------------------------------------------------------------- |
+| `m1.server.path`          | `""`    | Absolute path to the `m1-lsp` binary.                         |
+| `m1.trace.server`         | `off`   | Trace LSP traffic (`off`/`messages`/`verbose`).               |
+| `m1.lint.maxLineLength`   | `88`    | Lint: maximum line length (L001).                             |
+| `m1.lint.maxNestingDepth` | `4`     | Lint: maximum block nesting depth (L008).                     |
+| `m1.lint.maxComplexity`   | `10`    | Lint: maximum cyclomatic complexity (L009).                   |
+| `m1.lint.exclude`         | `[]`    | Lint: glob patterns of files to skip.                         |
+| `m1.format.lineWidth`     | `88`    | Formatter: wrap column.                                       |
+| `m1.format.maxBlankLines` | `2`     | Formatter: max consecutive blank lines.                       |
+| `m1.diagnostics.ignore`   | `[]`    | Disable diagnostics by code, any tool (lint `L*`, type `T*`). |
+| `m1.diagnostics.select`   | `[]`    | If non-empty, run ONLY these codes.                           |
+
+These VS Code settings are the convenient default. For **project-level** config
+shared with teammates (and with the Neovim plugins), commit an `m1-tools.toml` to
+the workspace — it configures the same lint/format/diagnostics options and
+**overrides** the VS Code settings. Generate one pre-filled with every default via
+the **M1: Generate m1-tools.toml** command.
 
 ## Commands
 
 - **M1: Restart Language Server**
 - **M1: Show Language Server Output**
+- **M1: Show Diagnostic Info**
+- **M1: Generate m1-tools.toml** — write a fully-defaulted `m1-tools.toml` to the workspace.
 
 ## Layout
 

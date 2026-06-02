@@ -58,6 +58,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run server:fetch
 
+      - name: Scaffold-config test
+        run: npm run test:scaffold
+
       - name: Integration tests
         run: xvfb-run -a npm run test:integration
 
