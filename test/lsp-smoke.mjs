@@ -120,6 +120,15 @@ const main = async () => {
   check(!!caps.documentHighlightProvider, "advertises documentHighlight");
   check(!!caps.foldingRangeProvider, "advertises foldingRange");
   check(!!caps.codeActionProvider, "advertises codeAction");
+  check(!!caps.renameProvider, "advertises rename");
+  check(
+    !!caps.renameProvider?.prepareProvider,
+    "rename advertises prepareProvider",
+  );
+  check(!!caps.inlayHintProvider, "advertises inlayHint");
+  check(!!caps.semanticTokensProvider, "advertises semanticTokens");
+  check(!!caps.workspaceSymbolProvider, "advertises workspace symbol");
+  check(!!caps.documentRangeFormattingProvider, "advertises range formatting");
   check(
     (caps.completionProvider?.triggerCharacters ?? []).includes("."),
     "completion registers '.' trigger",
@@ -354,7 +363,105 @@ const main = async () => {
     "quick-fix carries a WorkspaceEdit",
   );
 
-  // 12) shutdown
+  // 12) prepareRename + rename on the local `count` (decl at line 1, char 6).
+  send({
+    id: 10,
+    method: "textDocument/prepareRename",
+    params: { textDocument: { uri }, position: { line: 1, character: 6 } },
+  });
+  const prep = await waitId(10, "prepareRename");
+  check(!prep.error, "prepareRename returns without error");
+  check(
+    prep.result != null && typeof prep.result === "object",
+    "prepareRename returns a range for a renameable symbol",
+    JSON.stringify(prep.result)?.slice(0, 100),
+  );
+  send({
+    id: 11,
+    method: "textDocument/rename",
+    params: {
+      textDocument: { uri },
+      position: { line: 1, character: 6 },
+      newName: "tally",
+    },
+  });
+  const ren = await waitId(11, "rename");
+  check(!ren.error, "rename returns without error");
+  const renEdits = ren.result?.changes?.[uri] ?? ren.result?.documentChanges;
+  check(
+    Array.isArray(renEdits) && renEdits.length === 3,
+    "rename rewrites all 3 occurrences of `count`",
+    `count=${renEdits?.length}`,
+  );
+
+  // 13) inlayHint over the whole sample document.
+  send({
+    id: 12,
+    method: "textDocument/inlayHint",
+    params: {
+      textDocument: { uri },
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: 5, character: 0 },
+      },
+    },
+  });
+  const inlay = await waitId(12, "inlayHint");
+  check(!inlay.error, "inlayHint returns without error");
+  check(Array.isArray(inlay.result), "inlayHint returns an array");
+
+  // 14) semanticTokens/full over the sample document.
+  send({
+    id: 13,
+    method: "textDocument/semanticTokens/full",
+    params: { textDocument: { uri } },
+  });
+  const sem = await waitId(13, "semanticTokens/full");
+  check(!sem.error, "semanticTokens/full returns without error");
+  check(
+    Array.isArray(sem.result?.data),
+    "semanticTokens/full returns a data array",
+    `len=${sem.result?.data?.length}`,
+  );
+
+  // 15) workspace/symbol query.
+  send({
+    id: 14,
+    method: "workspace/symbol",
+    params: { query: "count" },
+  });
+  const wsym = await waitId(14, "workspace/symbol");
+  check(!wsym.error, "workspace/symbol returns without error");
+  // With no Project.m1prj loaded the server returns null (valid per spec);
+  // when a project is present it returns SymbolInformation[]. Accept either.
+  check(
+    wsym.result === null || Array.isArray(wsym.result),
+    "workspace/symbol returns null-or-array",
+    JSON.stringify(wsym.result)?.slice(0, 80),
+  );
+
+  // 16) rangeFormatting over the mis-spaced assignment (line 4).
+  send({
+    id: 15,
+    method: "textDocument/rangeFormatting",
+    params: {
+      textDocument: { uri },
+      range: {
+        start: { line: 4, character: 0 },
+        end: { line: 5, character: 0 },
+      },
+      options: { tabSize: 4, insertSpaces: true },
+    },
+  });
+  const rfmt = await waitId(15, "rangeFormatting");
+  check(!rfmt.error, "rangeFormatting returns without error");
+  check(
+    Array.isArray(rfmt.result),
+    "rangeFormatting returns a TextEdit[]",
+    JSON.stringify(rfmt.result)?.slice(0, 100),
+  );
+
+  // 17) shutdown
   send({ id: 99, method: "shutdown", params: null });
   await waitId(99, "shutdown");
   send({ method: "exit", params: null });
