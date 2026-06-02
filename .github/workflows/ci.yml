@@ -49,6 +49,18 @@ jobs:
       - name: Bundle
         run: npm run build
 
+      # Run the VS Code Extension Host suite headless (xvfb provides a display on
+      # the Linux runner; @vscode/test-electron downloads a real VS Code). The
+      # suite exercises real LSP hover/definition, so the server binary must be
+      # present first. (#18)
+      - name: Fetch m1-lsp server (for the integration tests)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run server:fetch
+
+      - name: Integration tests
+        run: xvfb-run -a npm run test:integration
+
       - name: Package VSIX
         run: npx vsce package --no-dependencies -o m1-vscode.vsix
 
