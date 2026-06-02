@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -20,7 +20,7 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.5.1"
+    "serverVersion": "v0.15.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -59,6 +59,10 @@
       {
         "command": "m1.showDiagnosticInfo",
         "title": "M1: Show Diagnostic Info"
+      },
+      {
+        "command": "m1.generateConfig",
+        "title": "M1: Generate m1-tools.toml"
       }
     ],
     "keybindings": [
@@ -74,6 +78,9 @@
         {
           "command": "m1.restartServer",
           "when": "editorLangId == m1scr"
+        },
+        {
+          "command": "m1.generateConfig"
         },
         {
           "command": "m1.showOutput",
@@ -114,6 +121,55 @@
           ],
           "default": "off",
           "description": "Trace the communication between VS Code and the m1-lsp server."
+        },
+        "m1.lint.maxLineLength": {
+          "type": "integer",
+          "default": 88,
+          "description": "Lint: maximum line length (L001). A workspace m1-tools.toml [lint] overrides this."
+        },
+        "m1.lint.maxNestingDepth": {
+          "type": "integer",
+          "default": 4,
+          "description": "Lint: maximum block nesting depth (L008). A workspace m1-tools.toml [lint] overrides this."
+        },
+        "m1.lint.maxComplexity": {
+          "type": "integer",
+          "default": 10,
+          "description": "Lint: maximum cyclomatic complexity (L009). A workspace m1-tools.toml [lint] overrides this."
+        },
+        "m1.lint.exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Lint: glob patterns for files to skip. A workspace m1-tools.toml [lint] overrides this."
+        },
+        "m1.format.lineWidth": {
+          "type": "integer",
+          "default": 88,
+          "description": "Formatter: hard column ceiling for wrapping. A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.format.maxBlankLines": {
+          "type": "integer",
+          "default": 2,
+          "description": "Formatter: maximum consecutive blank lines to keep. A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.diagnostics.ignore": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Disable diagnostics by code, from any tool (lint L*, typecheck T*). A workspace m1-tools.toml [diagnostics] overrides this."
+        },
+        "m1.diagnostics.select": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "If non-empty, run ONLY these diagnostic codes (lint L*, typecheck T*). A workspace m1-tools.toml [diagnostics] overrides this."
         }
       }
     }
@@ -128,6 +184,7 @@
     "server:verify": "node scripts/verify-server-pin.mjs",
     "test": "node test/grammar-tokenize.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
+    "test:scaffold": "node test/scaffold.mjs",
     "test:lsp": "node test/lsp-smoke.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -1,6 +1,8 @@
+import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import { promisify } from "util";
 import * as vscode from "vscode";
 import {
   LanguageClient,
@@ -9,6 +11,8 @@ import {
   State,
   TransportKind,
 } from "vscode-languageclient/node";
+
+const execFileAsync = promisify(execFile);
 
 let client: LanguageClient | undefined;
 let output: vscode.OutputChannel;
@@ -36,6 +40,22 @@ export async function activate(
     vscode.commands.registerCommand("m1.showDiagnosticInfo", () =>
       showDiagnosticInfo(context),
     ),
+    vscode.commands.registerCommand("m1.generateConfig", () =>
+      generateConfig(context),
+    ),
+    // Push edited m1.* settings to the running server live (the middle config
+    // layer beneath a workspace m1-tools.toml).
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (
+        e.affectsConfiguration("m1.lint") ||
+        e.affectsConfiguration("m1.format") ||
+        e.affectsConfiguration("m1.diagnostics")
+      ) {
+        void client?.sendNotification("workspace/didChangeConfiguration", {
+          settings: buildSettings(),
+        });
+      }
+    }),
     // Re-root the server when the user moves to an .m1scr in a different project.
     // m1-lsp loads its project once, from the initialize root, so switching
     // projects requires a restart with the new root.
@@ -120,6 +140,9 @@ async function startClient(context: vscode.ExtensionContext): Promise<void> {
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher("**/*.m1scr"),
     },
+    // The user's m1.* settings (the editor config layer); a workspace
+    // m1-tools.toml, which the server discovers itself, overrides these.
+    initializationOptions: { settings: buildSettings() },
   };
 
   client = new LanguageClient(
@@ -231,6 +254,92 @@ async function showDiagnosticInfo(
     language: "text",
   });
   await vscode.window.showTextDocument(doc, { preview: true });
+}
+
+/**
+ * Collect the user's explicitly-set `m1.*` settings into the snake_case shape the
+ * server's config layer expects (`{ lint, format, diagnostics }`). Only values the
+ * user actually set (workspace/global) are included — defaults are left out so the
+ * server falls back to its own, and a workspace `m1-tools.toml` can override.
+ */
+function buildSettings(): {
+  lint: Record<string, unknown>;
+  format: Record<string, unknown>;
+  diagnostics: Record<string, unknown>;
+} {
+  const cfg = vscode.workspace.getConfiguration("m1");
+  const explicit = (key: string): unknown => {
+    const i = cfg.inspect(key);
+    return i?.workspaceFolderValue ?? i?.workspaceValue ?? i?.globalValue;
+  };
+  const settings = {
+    lint: {} as Record<string, unknown>,
+    format: {} as Record<string, unknown>,
+    diagnostics: {} as Record<string, unknown>,
+  };
+  // [vsCodeSection.vsCodeKey, tomlSection, tomlKey]
+  const map: [string, "lint" | "format" | "diagnostics", string][] = [
+    ["lint.maxLineLength", "lint", "max_line_length"],
+    ["lint.maxNestingDepth", "lint", "max_nesting_depth"],
+    ["lint.maxComplexity", "lint", "max_complexity"],
+    ["lint.exclude", "lint", "exclude"],
+    ["format.lineWidth", "format", "line_width"],
+    ["format.maxBlankLines", "format", "max_blank_lines"],
+    ["diagnostics.ignore", "diagnostics", "ignore"],
+    ["diagnostics.select", "diagnostics", "select"],
+  ];
+  for (const [vsKey, section, tomlKey] of map) {
+    const v = explicit(vsKey);
+    if (v !== undefined) {
+      settings[section][tomlKey] = v;
+    }
+  }
+  return settings;
+}
+
+/**
+ * Generate a default `m1-tools.toml` in the workspace by running the bundled
+ * server's `--scaffold-config` (so the file matches the shipped tool versions and
+ * never drifts), then open it. Confirms before overwriting an existing file.
+ */
+async function generateConfig(context: vscode.ExtensionContext): Promise<void> {
+  const serverPath = resolveServerPath(context);
+  if (!serverPath) {
+    void vscode.window.showErrorMessage(
+      "m1-lsp server binary not found; cannot generate m1-tools.toml.",
+    );
+    return;
+  }
+  const root =
+    currentRoot ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (!root) {
+    void vscode.window.showErrorMessage(
+      "Open a folder/workspace before generating m1-tools.toml.",
+    );
+    return;
+  }
+  const target = path.join(root, "m1-tools.toml");
+  if (fs.existsSync(target)) {
+    const choice = await vscode.window.showWarningMessage(
+      "m1-tools.toml already exists. Overwrite it with defaults?",
+      "Overwrite",
+      "Cancel",
+    );
+    if (choice !== "Overwrite") {
+      return;
+    }
+  }
+  try {
+    const { stdout } = await execFileAsync(serverPath, ["--scaffold-config"]);
+    fs.writeFileSync(target, stdout);
+    const doc = await vscode.workspace.openTextDocument(target);
+    await vscode.window.showTextDocument(doc);
+    void vscode.window.showInformationMessage(`Generated ${target}`);
+  } catch (e) {
+    void vscode.window.showErrorMessage(
+      `Failed to generate m1-tools.toml: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
 }
 
 /**
