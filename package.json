@@ -55,8 +55,48 @@
       {
         "command": "m1.showOutput",
         "title": "M1: Show Language Server Output"
+      },
+      {
+        "command": "m1.showDiagnosticInfo",
+        "title": "M1: Show Diagnostic Info"
       }
     ],
+    "keybindings": [
+      {
+        "command": "m1.restartServer",
+        "key": "ctrl+k ctrl+m",
+        "mac": "cmd+k cmd+m",
+        "when": "editorTextFocus && editorLangId == m1scr"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "m1.restartServer",
+          "when": "editorLangId == m1scr"
+        },
+        {
+          "command": "m1.showOutput",
+          "when": "editorLangId == m1scr"
+        },
+        {
+          "command": "m1.showDiagnosticInfo",
+          "when": "editorLangId == m1scr"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "m1.restartServer",
+          "when": "editorLangId == m1scr",
+          "group": "m1@1"
+        },
+        {
+          "command": "m1.showDiagnosticInfo",
+          "when": "editorLangId == m1scr",
+          "group": "m1@2"
+        }
+      ]
+    },
     "configuration": {
       "title": "M1",
       "properties": {
