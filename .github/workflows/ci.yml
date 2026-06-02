@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege default: every job only reads the repo (and downloads public
+# release assets). Jobs opt into more only if they need it.
+permissions:
+  contents: read
+
 jobs:
   verify-server-pin:
     runs-on: ubuntu-latest
