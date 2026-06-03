@@ -13,6 +13,7 @@ server (which in turn drives `m1-fmt`, `m1-core`, `m1-lint`, and the type checke
 - Formatting (`m1-fmt`) — Format Document
 - Hover / type information
 - Go-to-definition
+- Go-to-implementation (a channel's write / producer sites)
 - Document symbols / outline
 - Completion
 - Diagnostics from `m1-lint` and the type checker
