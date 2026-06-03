@@ -1,0 +1,4 @@
+{
+  "folders": [{ "path": "multiroot/a" }, { "path": "multiroot/b" }],
+  "settings": {},
+}
