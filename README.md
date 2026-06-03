@@ -16,6 +16,10 @@ server (which in turn drives `m1-fmt`, `m1-core`, `m1-lint`, and the type checke
 - Document symbols / outline
 - Completion
 - Diagnostics from `m1-lint` and the type checker
+- **Multi-root workspaces** — one `m1-lsp` server is started per M1 project root
+  (`Project.m1prj`) discovered in the workspace, each scoped to its own folder, so
+  every project in a multi-root window gets full language features. Single-root
+  (and project-less) workspaces use one server as before.
 
 ## Requirements
 

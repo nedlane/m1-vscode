@@ -64,6 +64,9 @@ jobs:
       - name: Integration tests
         run: xvfb-run -a npm run test:integration
 
+      - name: Integration tests (multi-root workspace)
+        run: xvfb-run -a npm run test:integration:multiroot
+
       - name: Package VSIX
         run: npx vsce package --no-dependencies -o m1-vscode.vsix
 

@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<Project>
+  <Component Classname="BuiltIn.GroupCompound" Name="Root"/>
+  <Component Classname="BuiltIn.Channel" Name="Root.Beta"><Props Type="f32"/></Component>
+</Project>

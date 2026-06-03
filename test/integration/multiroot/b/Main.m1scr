@@ -1,0 +1,2 @@
+local beta = 0;
+beta = beta + 1;
