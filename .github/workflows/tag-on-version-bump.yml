@@ -1,0 +1,46 @@
+name: Tag on version bump
+
+# When package.json [version] changes on `main` (e.g. a merged sync-server repin
+# PR, or any manual release PR), create + push the matching vX.Y.Z tag. The tag
+# push triggers release.yml to build the per-platform VSIXes.
+#
+# This replaces the tag step that sync-server.yml used to do inline before it was
+# switched to a PR-based flow: merging the repin PR alone does not tag, so without
+# this the VSIX build would silently never run. Same idempotent pattern the other
+# tool repos use. GH_PAT is required because GITHUB_TOKEN pushes do not trigger
+# other workflows (release.yml would not fire on a GITHUB_TOKEN-pushed tag).
+
+on:
+  push:
+    branches: [main]
+    paths: ["package.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GH_PAT }}
+          fetch-depth: 0
+
+      - name: Tag on version change
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -e
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "$TAG already exists — nothing to do."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
+          echo "Pushed $TAG — release.yml will build the VSIXes."
