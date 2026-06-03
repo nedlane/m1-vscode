@@ -20,6 +20,10 @@ server (which in turn drives `m1-fmt`, `m1-core`, `m1-lint`, and the type checke
   (`Project.m1prj`) discovered in the workspace, each scoped to its own folder, so
   every project in a multi-root window gets full language features. Single-root
   (and project-less) workspaces use one server as before.
+- **Project editing** (via the bundled [`m1-project`](https://github.com/nedlane/m1-project)
+  CLI) — commands to **Create Channel**, **Set Component Security**, and **Set Script
+  Call Rate** edit `Project.m1prj` for you with validation, instead of hand-editing
+  XML. After an edit the language servers reload automatically.
 
 ## Requirements
 

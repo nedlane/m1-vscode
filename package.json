@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -20,7 +20,9 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.15.0"
+    "serverVersion": "v0.15.0",
+    "projectRepo": "nedlane/m1-project",
+    "projectVersion": "v0.1.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -63,6 +65,18 @@
       {
         "command": "m1.generateConfig",
         "title": "M1: Generate m1-tools.toml"
+      },
+      {
+        "command": "m1.createChannel",
+        "title": "M1: Create Channel…"
+      },
+      {
+        "command": "m1.setChannelSecurity",
+        "title": "M1: Set Component Security…"
+      },
+      {
+        "command": "m1.setCallRate",
+        "title": "M1: Set Script Call Rate…"
       }
     ],
     "keybindings": [
@@ -89,6 +103,16 @@
         {
           "command": "m1.showDiagnosticInfo",
           "when": "editorLangId == m1scr"
+        },
+        {
+          "command": "m1.createChannel"
+        },
+        {
+          "command": "m1.setChannelSecurity"
+        },
+        {
+          "command": "m1.setCallRate",
+          "when": "editorLangId == m1scr"
         }
       ],
       "editor/context": [
@@ -111,6 +135,11 @@
           "type": "string",
           "default": "",
           "description": "Absolute path to the m1-lsp server binary. If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-lsp' on PATH."
+        },
+        "m1.project.path": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the m1-project binary (used by the Create Channel / Set Security / Set Call Rate commands to edit Project.m1prj). If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-project' on PATH."
         },
         "m1.trace.server": {
           "type": "string",
@@ -181,6 +210,7 @@
     "vscode:prepublish": "node esbuild.mjs --production",
     "package": "vsce package --no-dependencies -o m1-vscode.vsix",
     "server:fetch": "node scripts/fetch-server.mjs",
+    "project:fetch": "node scripts/fetch-project.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
     "test": "node test/grammar-tokenize.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
