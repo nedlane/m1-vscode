@@ -44,6 +44,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: node scripts/fetch-server.mjs --target ${{ matrix.rustTarget }}
 
+      - name: Fetch m1-project for ${{ matrix.rustTarget }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: node scripts/fetch-project.mjs --target ${{ matrix.rustTarget }}
+
       - name: Bundle extension
         run: npm run build
 

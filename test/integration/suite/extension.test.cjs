@@ -134,4 +134,59 @@ suite("m1-vscode in a real VS Code Extension Host", () => {
       "go-to-definition should jump to the user function's backing file",
     );
   });
+
+  // The m1-project-backed editing commands (#85/#86). Drives the real command
+  // end-to-end: stub the prompts, point at a throwaway project, run the command,
+  // and assert m1-project actually rewrote Project.m1prj.
+  test("m1.createChannel edits Project.m1prj via m1-project", async function () {
+    this.timeout(60000);
+    const os = require("os");
+    const fs = require("fs");
+
+    // A bundled (or PATH) m1-project binary is required; skip cleanly if absent.
+    const bundled = path.resolve(__dirname, "../../../server/m1-project");
+    const bin = fs.existsSync(bundled) ? bundled : undefined;
+    if (!bin) {
+      console.log("    m1-project binary absent; skipping create-channel E2E");
+      return;
+    }
+    await vscode.workspace
+      .getConfiguration("m1")
+      .update("project.path", bin, vscode.ConfigurationTarget.Global);
+
+    // Throwaway project: a group to hang the new channel off, plus a script to
+    // make the dir the active project root.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "m1proj-"));
+    fs.writeFileSync(
+      path.join(dir, "Project.m1prj"),
+      '<?xml version="1.0"?>\n<Project>\n  <Component Classname="BuiltIn.GroupCompound" Name="Root"/>\n  <Component Classname="BuiltIn.GroupCompound" Name="Root.Engine"/>\n</Project>\n',
+    );
+    fs.writeFileSync(path.join(dir, "Main.m1scr"), "local x = 0;\n");
+    const main = await vscode.workspace.openTextDocument(
+      path.join(dir, "Main.m1scr"),
+    );
+    await vscode.window.showTextDocument(main);
+
+    // Stub the interactive prompts the command issues, in order.
+    const inputs = ["Root.Engine.NewSignal", ""]; // name, then unit
+    const picks = ["f32", "Tune"]; // type, then security
+    const origInput = vscode.window.showInputBox;
+    const origPick = vscode.window.showQuickPick;
+    vscode.window.showInputBox = async () => inputs.shift();
+    vscode.window.showQuickPick = async () => picks.shift();
+    try {
+      await vscode.commands.executeCommand("m1.createChannel");
+    } finally {
+      vscode.window.showInputBox = origInput;
+      vscode.window.showQuickPick = origPick;
+    }
+
+    const written = fs.readFileSync(path.join(dir, "Project.m1prj"), "utf8");
+    assert.match(
+      written,
+      /Name="Root\.Engine\.NewSignal"/,
+      "m1-project should have inserted the new channel component",
+    );
+    assert.match(written, /Type="f32"/, "the channel should carry its type");
+  });
 });
