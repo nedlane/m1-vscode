@@ -1,9 +1,14 @@
 name: Sync m1-lsp server
 
-# Watches the m1-lsp repo for a newer server release. When found, repins
-# package.json m1.serverVersion, bumps the extension version, and pushes a tag —
+# Watches the m1-lsp repo for a newer server release. When found, opens a PR
+# that repins package.json m1.serverVersion and bumps the extension version.
+# A human reviews + merges; tag-on-version-bump.yml then tags the merge commit,
 # which triggers release.yml to rebuild and publish every per-platform VSIX.
-# This is what makes "m1-lsp updated -> new extension version" hands-off.
+#
+# NOTE: this used to commit + tag and push straight to `main`. `main` is a
+# protected branch ("changes must be made through a pull request"), so that
+# direct push was always rejected and the daily sync failed silently. Hence the
+# PR-based flow below — the repin lands as a reviewable PR, never a direct push.
 
 on:
   schedule:
@@ -11,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       force:
-        description: "Re-release even if the server version is unchanged"
+        description: "Open the PR even if the server version is unchanged"
         type: boolean
         default: false
 
@@ -21,8 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # Use the PAT so the tag push triggers release.yml (GITHUB_TOKEN pushes
-          # do not trigger other workflows).
+          # PAT so the branch push / PR is attributed to a real account and can
+          # trigger PR checks (GITHUB_TOKEN pushes do not trigger other workflows).
           token: ${{ secrets.GH_PAT }}
 
       - uses: actions/setup-node@v6
@@ -37,25 +42,34 @@ jobs:
           REPO=$(node -p "require('./package.json').m1.serverRepo")
           PINNED=$(node -p "require('./package.json').m1.serverVersion")
           LATEST=$(gh release view --repo "$REPO" --json tagName -q .tagName)
-          echo "repo=$REPO"        >> "$GITHUB_OUTPUT"
-          echo "pinned=$PINNED"    >> "$GITHUB_OUTPUT"
-          echo "latest=$LATEST"    >> "$GITHUB_OUTPUT"
+          echo "repo=$REPO"     >> "$GITHUB_OUTPUT"
+          echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
           echo "m1-lsp pinned=$PINNED latest=$LATEST"
 
-      - name: Repin + bump + tag
+      - name: Open repin PR
         if: steps.v.outputs.latest != steps.v.outputs.pinned || inputs.force
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -e
           LATEST="${{ steps.v.outputs.latest }}"
+          BRANCH="sync/server-$LATEST"
           node -e "const f='package.json';const p=require('./'+f);p.m1.serverVersion='$LATEST';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
           NEWVER=$(npm version patch --no-git-tag-version | tr -d 'v')
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add package.json package-lock.json
           git commit -m "chore: bump m1-lsp server to $LATEST, release v$NEWVER"
-          git tag "v$NEWVER"
-          git push origin HEAD:main
-          git push origin "v$NEWVER"
-          echo "Tagged v$NEWVER (server $LATEST) — release.yml will build the VSIXes."
+          # Force-update the branch so a re-run after an earlier failed sync
+          # refreshes it rather than erroring on a stale ref.
+          git push -f origin "$BRANCH"
+          if gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q OPEN; then
+            echo "PR already open for $BRANCH — branch updated."
+          else
+            BODY="Automated by sync-server.yml. Repins the bundled m1-lsp server to **$LATEST** and bumps the extension to **v$NEWVER**. Review + merge — tag-on-version-bump.yml will tag the merge commit and release.yml will build + publish the per-platform VSIXes. Nothing auto-merges."
+            gh pr create --base main --head "$BRANCH" \
+              --title "chore: bump m1-lsp server to $LATEST (v$NEWVER)" \
+              --body "$BODY"
+          fi
