@@ -20,6 +20,11 @@ on:
         type: boolean
         default: false
 
+# Least-privilege default. The branch push / PR is done with the GH_PAT (see the
+# checkout step), so the workflow does not rely on GITHUB_TOKEN write scopes.
+permissions:
+  contents: read
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -39,9 +44,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
+          set -euo pipefail
           REPO=$(node -p "require('./package.json').m1.serverRepo")
           PINNED=$(node -p "require('./package.json').m1.serverVersion")
           LATEST=$(gh release view --repo "$REPO" --json tagName -q .tagName)
+          # SECURITY: the upstream tag name is attacker-influenced (anyone who can
+          # cut a release/tag on the m1-lsp repo controls it). It is later spliced
+          # into a branch name, commit message and a node script, so reject anything
+          # that is not a strict vX.Y.Z semver tag before it can reach a shell/JS
+          # context. This blocks tag-name script injection (e.g. v9$(...), v0'+...).
+          if ! printf '%s' "$LATEST" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Refusing to use untrusted m1-lsp tag name '$LATEST' — expected vX.Y.Z." >&2
+            exit 1
+          fi
           echo "repo=$REPO"     >> "$GITHUB_OUTPUT"
           echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
           echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
@@ -51,11 +66,17 @@ jobs:
         if: steps.v.outputs.latest != steps.v.outputs.pinned || inputs.force
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
+          # SECURITY: pass the (already vX.Y.Z-validated) tag through the env, never
+          # via ${{ }} template interpolation into the run: script or the node -e
+          # string. Interpolation would splice the raw tag into shell/JS text before
+          # execution; reading it from $LATEST / process.env.LATEST keeps it as data.
+          LATEST: ${{ steps.v.outputs.latest }}
         run: |
-          set -e
-          LATEST="${{ steps.v.outputs.latest }}"
+          set -euo pipefail
           BRANCH="sync/server-$LATEST"
-          node -e "const f='package.json';const p=require('./'+f);p.m1.serverVersion='$LATEST';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
+          # Read the version from the environment (process.env.LATEST), not by
+          # concatenating it into the JS source.
+          node -e "const f='package.json';const p=require('./'+f);p.m1.serverVersion=process.env.LATEST;require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
           NEWVER=$(npm version patch --no-git-tag-version | tr -d 'v')
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

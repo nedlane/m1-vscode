@@ -8,10 +8,63 @@
 //   node scripts/fetch-server.mjs                 # current platform, pinned version
 //   node scripts/fetch-server.mjs --target x86_64-pc-windows-msvc
 //   node scripts/fetch-server.mjs --version v0.2.0 --out server
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+// Verify GitHub build provenance for a downloaded release asset before we trust
+// (and later bundle/spawn) it. The producer repos sign their release binaries
+// with actions/attest-build-provenance; `gh attestation verify` checks the
+// Sigstore bundle against the asset's digest and the producing repo.
+//
+// Policy during rollout:
+//   - attestation present + valid -> OK
+//   - attestation present + invalid -> FAIL (tampering / wrong producer)
+//   - no attestation yet (older releases) -> WARN and proceed
+//   - gh missing / no GH auth -> WARN and proceed (documented fallback: callers
+//     without gh should pin + check SHA-256 out of band)
+// This makes verification enforcing wherever provenance exists without breaking
+// the build for releases cut before the producers started attesting.
+function verifyProvenance(file, repo) {
+  const gh = spawnSync("gh", ["attestation", "verify", file, "--repo", repo], {
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+  });
+
+  if (gh.error && gh.error.code === "ENOENT") {
+    console.warn(
+      `WARN: 'gh' not found — cannot verify build provenance of ${file}. ` +
+        `Proceeding unverified. Install gh, or verify a pinned SHA-256 out of band.`,
+    );
+    return;
+  }
+
+  const out = `${gh.stdout ?? ""}${gh.stderr ?? ""}`;
+  if (gh.status === 0) {
+    console.log(`Provenance verified for ${file} (repo ${repo}).`);
+    return;
+  }
+
+  // gh exits non-zero both when no attestation exists yet and when an existing
+  // attestation fails to verify. Treat "no attestation found" as a soft warning
+  // (rollout) but a genuine verification failure as fatal (tampering signal).
+  const noAttestation =
+    /no attestations? found/i.test(out) ||
+    /could not find any attestations/i.test(out);
+  if (noAttestation) {
+    console.warn(
+      `WARN: no build provenance attestation found for ${file} (repo ${repo}). ` +
+        `This is expected for releases cut before provenance rollout; proceeding.`,
+    );
+    return;
+  }
+
+  console.error(
+    `\nProvenance verification FAILED for ${file} (repo ${repo}):\n${out}`,
+  );
+  process.exit(1);
+}
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(
@@ -84,6 +137,9 @@ try {
   );
   process.exit(1);
 }
+
+// Verify build provenance before trusting the binary (chmod +x / bundle).
+verifyProvenance(outFile, repo);
 
 if (!isWindows) {
   fs.chmodSync(outFile, 0o755);
