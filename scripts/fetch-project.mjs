@@ -51,7 +51,10 @@ function verifyProvenance(file, repo) {
   // (rollout) but a genuine verification failure as fatal (tampering signal).
   const noAttestation =
     /no attestations? found/i.test(out) ||
-    /could not find any attestations/i.test(out);
+    /could not find any attestations/i.test(out) ||
+    // gh surfaces a missing attestation as a 404 on the attestations API
+    // endpoint — that means the release predates provenance, not tampering.
+    (/HTTP 404/i.test(out) && /attestations/i.test(out));
   if (noAttestation) {
     console.warn(
       `WARN: no build provenance attestation found for ${file} (repo ${repo}). ` +
