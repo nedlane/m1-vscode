@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -20,9 +20,9 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.23.0",
+    "serverVersion": "v0.24.0",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.1.0"
+    "projectVersion": "v0.2.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -134,11 +134,13 @@
         "m1.server.path": {
           "type": "string",
           "default": "",
+          "scope": "machine",
           "description": "Absolute path to the m1-lsp server binary. If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-lsp' on PATH."
         },
         "m1.project.path": {
           "type": "string",
           "default": "",
+          "scope": "machine",
           "description": "Absolute path to the m1-project binary (used by the Create Channel / Set Security / Set Call Rate commands to edit Project.m1prj). If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-project' on PATH."
         },
         "m1.trace.server": {
@@ -223,6 +225,11 @@
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
+  },
+  "overridesComment": "Dev-only (mocha) transitive advisories: force patched diff (>=8.0.3, GHSA-73rr-hh4g-fpgx) and serialize-javascript (>=7.0.5, GHSA-5c6j-r48x-rmvq / GHSA-qj8w-gfj5-8c6v). Test-runner deps only — nothing here is bundled into the published VSIX.",
+  "overrides": {
+    "diff": "^8.0.3",
+    "serialize-javascript": "^7.0.5"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
