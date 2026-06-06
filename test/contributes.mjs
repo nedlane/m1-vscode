@@ -57,7 +57,9 @@ const scopes = m1Entry?.scopes ?? {};
 for (const t of LEGEND_TYPES) {
   const v = scopes[t];
   const ok =
-    (Array.isArray(v) && v.length > 0 && v.every((s) => typeof s === "string")) ||
+    (Array.isArray(v) &&
+      v.length > 0 &&
+      v.every((s) => typeof s === "string")) ||
     typeof v === "string";
   check(ok, `token type "${t}" maps to a TextMate scope`);
 }

@@ -22,7 +22,7 @@
     "serverRepo": "C-Nucifora/m1-lsp",
     "serverVersion": "v0.25.0",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.2.2"
+    "projectVersion": "v0.2.3"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -53,18 +53,44 @@
       {
         "language": "m1scr",
         "scopes": {
-          "namespace": ["entity.name.namespace.m1scr", "support.class.m1scr"],
-          "type": ["entity.name.type.m1scr", "support.type.m1scr"],
-          "parameter": ["variable.parameter.m1scr"],
-          "property": ["variable.other.property.m1scr"],
-          "function": ["entity.name.function.m1scr"],
-          "variable": ["variable.other.readwrite.m1scr"],
-          "variable.readonly": ["variable.other.constant.m1scr"],
-          "property.readonly": ["variable.other.constant.property.m1scr"],
-          "keyword": ["keyword.control.m1scr"],
-          "number": ["constant.numeric.m1scr"],
-          "string": ["string.quoted.double.m1scr"],
-          "comment": ["comment.line.m1scr"]
+          "namespace": [
+            "entity.name.namespace.m1scr",
+            "support.class.m1scr"
+          ],
+          "type": [
+            "entity.name.type.m1scr",
+            "support.type.m1scr"
+          ],
+          "parameter": [
+            "variable.parameter.m1scr"
+          ],
+          "property": [
+            "variable.other.property.m1scr"
+          ],
+          "function": [
+            "entity.name.function.m1scr"
+          ],
+          "variable": [
+            "variable.other.readwrite.m1scr"
+          ],
+          "variable.readonly": [
+            "variable.other.constant.m1scr"
+          ],
+          "property.readonly": [
+            "variable.other.constant.property.m1scr"
+          ],
+          "keyword": [
+            "keyword.control.m1scr"
+          ],
+          "number": [
+            "constant.numeric.m1scr"
+          ],
+          "string": [
+            "string.quoted.double.m1scr"
+          ],
+          "comment": [
+            "comment.line.m1scr"
+          ]
         }
       }
     ],

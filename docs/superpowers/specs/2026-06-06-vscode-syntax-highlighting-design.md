@@ -21,8 +21,7 @@ VS Code has two highlighting layers and **both are underpowered**:
    `Library`) or the root segment of a dotted member path.
 2. **LSP semantic tokens** — `m1-lsp` v0.25.0 already emits **rich** semantic
    tokens (`src/features/semantic_tokens.rs`): channels→`property`,
-   groups/objects→`namespace`, parameters→`parameter`, constants→`variable`
-   +`readonly`, locals→`variable`+`definition`, types, functions/methods. This is
+   groups/objects→`namespace`, parameters→`parameter`, constants→`variable` +`readonly`, locals→`variable`+`definition`, types, functions/methods. This is
    as good as or better than the nvim queries. **But the client throws it away:**
    `package.json` has no `semanticTokenScopes` mapping and no
    `configurationDefaults`, so on most themes these token types receive no color
@@ -53,16 +52,16 @@ Add `contributes.semanticTokenScopes` mapping every token type in the server's
 legend to standard TextMate scopes, so **any** theme colors them (including
 themes without native semantic support, which fall back to these scopes):
 
-| Semantic token         | TextMate scope(s)                                   |
-|------------------------|-----------------------------------------------------|
-| `namespace`            | `entity.name.namespace`, `support.class`            |
-| `type`                 | `entity.name.type`, `support.type`                  |
-| `parameter`            | `variable.parameter`                                |
-| `property`             | `variable.other.property`                           |
-| `function`             | `entity.name.function`                              |
-| `variable`             | `variable.other.readwrite`                          |
-| `variable.readonly`    | `variable.other.constant`                           |
-| `property.readonly`    | `variable.other.constant.property`                  |
+| Semantic token      | TextMate scope(s)                        |
+| ------------------- | ---------------------------------------- |
+| `namespace`         | `entity.name.namespace`, `support.class` |
+| `type`              | `entity.name.type`, `support.type`       |
+| `parameter`         | `variable.parameter`                     |
+| `property`          | `variable.other.property`                |
+| `function`          | `entity.name.function`                   |
+| `variable`          | `variable.other.readwrite`               |
+| `variable.readonly` | `variable.other.constant`                |
+| `property.readonly` | `variable.other.constant.property`       |
 
 Add `contributes.configurationDefaults` so semantic highlighting is on for the
 language regardless of the active theme's opt-in:
@@ -109,7 +108,7 @@ gracefully.
 - **Contributions** (new `test/contributes.mjs`): assert `package.json`
   `semanticTokenScopes` covers every type in the server legend
   (`variable, function, keyword, number, string, comment, type, parameter,
-  namespace, property`) and that `configurationDefaults["[m1scr]"]` enables
+namespace, property`) and that `configurationDefaults["[m1scr]"]` enables
   semantic highlighting. Wire into the `test` script.
 - **Manual smoke**: build the VSIX, open an EV-M1 `.m1scr`, confirm channels,
   groups, parameters, function calls, and reference keywords are distinctly
