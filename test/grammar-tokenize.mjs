@@ -106,5 +106,23 @@ expectScope(
 expectScope(grammar, "x = a + b;", "+", "keyword.operator");
 expectScope(grammar, "foo(a);", "foo", "entity.name.function");
 
+// M1 reference keywords (Development Manual): Root/This/Parent/In/Out/Library
+// behave like `self`/`this` in other languages — highlight them distinctly even
+// when they head a dotted path.
+expectScope(grammar, "x = Root.Engine.Rpm;", "Root", "variable.language");
+expectScope(grammar, "x = This.Value;", "This", "variable.language");
+expectScope(grammar, "x = Parent.State;", "Parent", "variable.language");
+expectScope(grammar, "x = Library.Math.Pi;", "Library", "variable.language");
+// The leading segment of a (non-keyword) dotted member path is the path root;
+// nvim colors it like the rest of the path (a property), not a plain variable.
+expectScope(
+  grammar,
+  "x = Vehicle.SBG.Gyro.Z;",
+  "Vehicle",
+  "variable.other.property",
+);
+// A reference keyword at the head of a path must win over the path-root rule.
+expectScope(grammar, "x = Root.Engine.Rpm;", "Root", "variable.language");
+
 console.log(`\nResult: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

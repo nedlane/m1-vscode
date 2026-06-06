@@ -11,7 +11,9 @@
     { "include": "#booleans" },
     { "include": "#keywords" },
     { "include": "#word-operators" },
+    { "include": "#reference-keywords" },
     { "include": "#function-call" },
+    { "include": "#member-path-root" },
     { "include": "#property" },
     { "include": "#operators" },
     { "include": "#punctuation" }
@@ -93,6 +95,16 @@
     "word-operators": {
       "name": "keyword.operator.word.m1scr",
       "match": "\\b(and|or|not|eq|neq)\\b"
+    },
+    "reference-keywords": {
+      "comment": "M1 reference keywords (Development Manual) — self/this-like.",
+      "name": "variable.language.m1scr",
+      "match": "\\b(Root|This|Parent|In|Out|Library)\\b"
+    },
+    "member-path-root": {
+      "comment": "Leading identifier of a dotted member path (e.g. Vehicle in Vehicle.SBG.Gyro). The segments after each '.' are handled by #property.",
+      "name": "variable.other.property.m1scr",
+      "match": "[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\.)"
     },
     "function-call": {
       "patterns": [
