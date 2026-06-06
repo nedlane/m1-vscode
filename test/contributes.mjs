@@ -1,0 +1,75 @@
+// Verifies package.json wires the m1-lsp semantic tokens into theme colors.
+//
+// m1-lsp emits semantic tokens (see m1-lsp src/features/semantic_tokens.rs
+// `legend()`), but VS Code only colors them if the extension either relies on a
+// theme's native semantic support OR maps the token types to TextMate scopes via
+// `contributes.semanticTokenScopes`. Without that mapping, channels (property),
+// groups (namespace), parameters, etc. render flat on most themes. We also force
+// `editor.semanticHighlighting.enabled` on for the language so a theme that
+// hasn't opted in still shows them.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(
+  fs.readFileSync(path.join(here, "..", "package.json"), "utf8"),
+);
+
+// The m1-lsp legend (semantic_tokens.rs). These are the token *types* the server
+// can emit; every one must have a scope mapping so no theme leaves it uncolored.
+const LEGEND_TYPES = [
+  "variable",
+  "function",
+  "keyword",
+  "number",
+  "string",
+  "comment",
+  "type",
+  "parameter",
+  "namespace",
+  "property",
+];
+
+let pass = 0;
+let fail = 0;
+function check(ok, msg) {
+  if (ok) {
+    console.log(`  PASS  ${msg}`);
+    pass++;
+  } else {
+    console.log(`  FAIL  ${msg}`);
+    fail++;
+  }
+}
+
+console.log("package.json contributes:");
+
+// 1. semanticTokenScopes exists and targets our language.
+const sts = pkg.contributes?.semanticTokenScopes;
+check(Array.isArray(sts) && sts.length > 0, "semanticTokenScopes is present");
+
+const m1Entry = (sts ?? []).find((e) => e.language === "m1scr");
+check(!!m1Entry, "semanticTokenScopes has an entry for language m1scr");
+
+// 2. Every legend token type maps to at least one non-empty TextMate scope.
+const scopes = m1Entry?.scopes ?? {};
+for (const t of LEGEND_TYPES) {
+  const v = scopes[t];
+  const ok =
+    (Array.isArray(v) &&
+      v.length > 0 &&
+      v.every((s) => typeof s === "string")) ||
+    typeof v === "string";
+  check(ok, `token type "${t}" maps to a TextMate scope`);
+}
+
+// 3. configurationDefaults enables semantic highlighting for [m1scr].
+const cfg = pkg.contributes?.configurationDefaults?.["[m1scr]"];
+check(
+  cfg?.["editor.semanticHighlighting.enabled"] === true,
+  "configurationDefaults enables semantic highlighting for [m1scr]",
+);
+
+console.log(`\ncontributes: ${pass} passed, ${fail} failed`);
+process.exit(fail === 0 ? 0 : 1);

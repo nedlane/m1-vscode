@@ -9,7 +9,10 @@ server (which in turn drives `m1-fmt`, `m1-core`, `m1-lint`, and the type checke
 
 ## Features
 
-- Syntax highlighting (TextMate grammar mirroring `tree-sitter-m1/queries/highlights.scm`)
+- Syntax highlighting — two layers, matching the Neovim/tree-sitter experience:
+  a TextMate grammar baseline, refined by **LSP semantic tokens** from `m1-lsp`
+  (channels, groups, parameters, constants and member paths are resolved against
+  the project model, not guessed by regex). Enabled by default for `.m1scr`.
 - Formatting (`m1-fmt`) — Format Document
 - Hover / type information
 - Go-to-definition

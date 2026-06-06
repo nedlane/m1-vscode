@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -22,7 +22,7 @@
     "serverRepo": "C-Nucifora/m1-lsp",
     "serverVersion": "v0.25.0",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.2.2"
+    "projectVersion": "v0.2.3"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -49,6 +49,56 @@
         "path": "./syntaxes/m1scr.tmLanguage.json"
       }
     ],
+    "semanticTokenScopes": [
+      {
+        "language": "m1scr",
+        "scopes": {
+          "namespace": [
+            "entity.name.namespace.m1scr",
+            "support.class.m1scr"
+          ],
+          "type": [
+            "entity.name.type.m1scr",
+            "support.type.m1scr"
+          ],
+          "parameter": [
+            "variable.parameter.m1scr"
+          ],
+          "property": [
+            "variable.other.property.m1scr"
+          ],
+          "function": [
+            "entity.name.function.m1scr"
+          ],
+          "variable": [
+            "variable.other.readwrite.m1scr"
+          ],
+          "variable.readonly": [
+            "variable.other.constant.m1scr"
+          ],
+          "property.readonly": [
+            "variable.other.constant.property.m1scr"
+          ],
+          "keyword": [
+            "keyword.control.m1scr"
+          ],
+          "number": [
+            "constant.numeric.m1scr"
+          ],
+          "string": [
+            "string.quoted.double.m1scr"
+          ],
+          "comment": [
+            "comment.line.m1scr"
+          ]
+        }
+      }
+    ],
+    "configurationDefaults": {
+      "[m1scr]": {
+        "editor.semanticHighlighting.enabled": true
+      }
+    },
     "commands": [
       {
         "command": "m1.restartServer",
@@ -214,8 +264,9 @@
     "server:fetch": "node scripts/fetch-server.mjs",
     "project:fetch": "node scripts/fetch-project.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
-    "test": "node test/grammar-tokenize.mjs && node test/lsp-smoke.mjs",
+    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
+    "test:contributes": "node test/contributes.mjs",
     "test:scaffold": "node test/scaffold.mjs",
     "test:lsp": "node test/lsp-smoke.mjs",
     "format": "prettier --write .",
