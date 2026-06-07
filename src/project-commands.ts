@@ -1,0 +1,246 @@
+import { execFile } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import { promisify } from "util";
+import * as vscode from "vscode";
+import { FileChangeType } from "vscode-languageclient/node";
+
+import { clients } from "./lsp-client";
+import { findProjectDir, PROJECT_MARKER, resolveBin } from "./utils";
+
+const execFileAsync = promisify(execFile);
+
+// ---- m1-project: editor-driven Project.m1prj mutations (#85, #86) -----------
+
+const PROJECT_BIN =
+  process.platform === "win32" ? "m1-project.exe" : "m1-project";
+
+let output: vscode.OutputChannel;
+
+/** Wire the project commands to the extension's shared output channel. */
+export function initProjectCommands(sharedOutput: vscode.OutputChannel): void {
+  output = sharedOutput;
+}
+
+/**
+ * Resolve the `m1-project` binary: the `m1.project.path` setting, then a bundled
+ * copy under the extension's `server/` dir, then `m1-project` on PATH.
+ */
+function resolveProjectBin(
+  context: vscode.ExtensionContext,
+): string | undefined {
+  return resolveBin(context, "project.path", PROJECT_BIN, (line) =>
+    output.appendLine(line),
+  );
+}
+
+/** The `Project.m1prj` path for the active editor's project, or the first server's root. */
+async function activeProjectFile(): Promise<string | undefined> {
+  const active = vscode.window.activeTextEditor?.document.uri;
+  const root =
+    (active ? (await findProjectDir(active))?.fsPath : undefined) ??
+    [...clients.values()].find((c) => c.root)?.root;
+  return root ? path.join(root, PROJECT_MARKER) : undefined;
+}
+
+/** Run an m1-project subcommand against `projectFile`; resolves on success. */
+async function runProject(
+  context: vscode.ExtensionContext,
+  args: string[],
+): Promise<string> {
+  const bin = resolveProjectBin(context);
+  if (!bin) {
+    throw new Error(
+      "m1-project binary not found. Set 'm1.project.path', bundle it under server/, or put 'm1-project' on PATH.",
+    );
+  }
+  const { stdout } = await execFileAsync(bin, args);
+  return stdout;
+}
+
+/**
+ * Tell the language server(s) that an edited `Project.m1prj` changed, so each
+ * reloads its project from disk — without the heavyweight stop+restart cycle.
+ * m1-lsp reloads its project on a `workspace/didChangeWatchedFiles` Changed
+ * event for the .m1prj (the Neovim client already relies on this). A full
+ * restart is reserved for the explicit `m1.restartServer` command.
+ */
+function reloadProjectClients(projectFile: string): void {
+  const uri = vscode.Uri.file(projectFile).toString();
+  for (const { client } of clients.values()) {
+    void client.sendNotification("workspace/didChangeWatchedFiles", {
+      changes: [{ uri, type: FileChangeType.Changed }],
+    });
+  }
+}
+
+/**
+ * Shared guard + error handling for the m1-project commands: find the active
+ * `Project.m1prj` (or surface an error and bail), run `fn` with it, send the
+ * lightweight reload, and funnel any failure to a single error toast. `fn`
+ * returns a success message to show, or undefined to stay silent (e.g. the user
+ * cancelled a dialog).
+ */
+async function withProjectFile(
+  actionName: string,
+  fn: (projectFile: string) => Promise<string | undefined>,
+): Promise<void> {
+  try {
+    const projectFile = await activeProjectFile();
+    if (!projectFile || !fs.existsSync(projectFile)) {
+      void vscode.window.showErrorMessage(
+        "No Project.m1prj found for the active M1 project.",
+      );
+      return;
+    }
+    const message = await fn(projectFile);
+    if (message === undefined) {
+      return; // cancelled; no edit, no reload
+    }
+    reloadProjectClients(projectFile);
+    void vscode.window.showInformationMessage(message);
+  } catch (e) {
+    void vscode.window.showErrorMessage(
+      `${actionName} failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+}
+
+export function createChannel(context: vscode.ExtensionContext): Promise<void> {
+  return withProjectFile("Create channel", async (projectFile) => {
+    const name = await vscode.window.showInputBox({
+      title: "Create M1 Channel",
+      prompt: "Fully-qualified channel name (its parent group must exist)",
+      placeHolder: "Root.Engine.NewSignal",
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim())
+          ? undefined
+          : "Name must be fully qualified, e.g. Root.Group.Name",
+    });
+    if (!name) {
+      return undefined;
+    }
+    const type = await vscode.window.showQuickPick(
+      ["(none)", "f32", "f64", "u8", "u16", "u32", "s8", "s16", "s32", "bool"],
+      { title: "Storage type", placeHolder: "Channel storage type (optional)" },
+    );
+    if (type === undefined) {
+      return undefined;
+    }
+    const unit = await vscode.window.showInputBox({
+      title: "Unit (optional)",
+      prompt: "Display unit, e.g. rpm — leave blank for none",
+    });
+    if (unit === undefined) {
+      return undefined;
+    }
+    const security = await vscode.window.showQuickPick(
+      ["(none)", "Tune", "Calibration", "Master Calibration", "Resource"],
+      { title: "Security level (optional)" },
+    );
+    if (security === undefined) {
+      return undefined;
+    }
+    const args = [
+      "create-channel",
+      "--project",
+      projectFile,
+      "--name",
+      name.trim(),
+    ];
+    if (type !== "(none)") {
+      args.push("--type", type);
+    }
+    if (unit.trim()) {
+      args.push("--unit", unit.trim());
+    }
+    if (security !== "(none)") {
+      args.push("--security", security);
+    }
+    await runProject(context, args);
+    return `Created channel ${name.trim()}`;
+  });
+}
+
+export function setChannelSecurity(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  return withProjectFile("Set security", async (projectFile) => {
+    const component = await vscode.window.showInputBox({
+      title: "Set Component Security",
+      prompt: "Fully-qualified component name",
+      placeHolder: "Root.Engine.Speed",
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim()) ? undefined : "Name must be fully qualified",
+    });
+    if (!component) {
+      return undefined;
+    }
+    const security = await vscode.window.showQuickPick(
+      ["Tune", "Calibration", "Master Calibration", "Resource"],
+      { title: "Security level" },
+    );
+    if (!security) {
+      return undefined;
+    }
+    await runProject(context, [
+      "set-security",
+      "--project",
+      projectFile,
+      "--component",
+      component.trim(),
+      "--security",
+      security,
+    ]);
+    return `${component.trim()} security → ${security}`;
+  });
+}
+
+export function setCallRate(context: vscode.ExtensionContext): Promise<void> {
+  return withProjectFile("Set call rate", async (projectFile) => {
+    const script = await vscode.window.showInputBox({
+      title: "Set Script Call Rate",
+      prompt: "Fully-qualified script (FuncUser/MethodUser) name",
+      placeHolder: "Root.Engine.Update",
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim()) ? undefined : "Name must be fully qualified",
+    });
+    if (!script) {
+      return undefined;
+    }
+    // Offer the rates the project actually defines (its On <N>Hz clocks).
+    let rates: string[] = [];
+    try {
+      const out = await runProject(context, [
+        "list-rates",
+        "--project",
+        projectFile,
+      ]);
+      rates = out
+        .split("\n")
+        .map((r) => r.trim())
+        .filter(Boolean);
+    } catch {
+      // fall through to a free-text entry below
+    }
+    const pick = await vscode.window.showQuickPick(
+      rates.length ? rates : ["100Hz", "50Hz", "20Hz", "10Hz", "Startup"],
+      { title: "Execution rate" },
+    );
+    if (!pick) {
+      return undefined;
+    }
+    // The CLI wants `startup` or a bare number; strip the trailing "Hz".
+    const rate = /startup/i.test(pick) ? "startup" : pick.replace(/Hz$/i, "");
+    await runProject(context, [
+      "set-call-rate",
+      "--project",
+      projectFile,
+      "--script",
+      script.trim(),
+      "--rate",
+      rate,
+    ]);
+    return `${script.trim()} call rate → ${pick}`;
+  });
+}
