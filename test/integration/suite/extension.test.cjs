@@ -40,6 +40,17 @@ suite("m1-vscode in a real VS Code Extension Host", () => {
     assert.strictEqual(doc.languageId, "m1scr");
   });
 
+  // #175: the clickable execution-rate code lens fires the client-registered
+  // `m1.revealLocation` command (NOT a server executeCommandProvider command),
+  // so it must be present in the command registry.
+  test("m1.revealLocation command is registered", async () => {
+    const cmds = await vscode.commands.getCommands(true);
+    assert.ok(
+      cmds.includes("m1.revealLocation"),
+      "m1.revealLocation should be registered client-side",
+    );
+  });
+
   test("hover (LSP) returns the inferred type for a local", async function () {
     this.timeout(60000);
     // 'count' in: local count = 0;
