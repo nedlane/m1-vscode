@@ -19,6 +19,13 @@ export interface ManagedClient {
   output: vscode.OutputChannel;
   /** The project root this client is rooted at, or undefined in project-less mode. */
   root: string | undefined;
+  /**
+   * The file-system watchers handed to the client via `synchronize.fileEvents`.
+   * vscode-languageclient hooks listeners onto these (registerRaw) but never
+   * disposes the watchers themselves, so we own them and dispose them when this
+   * client is torn down — otherwise every restart/re-sync leaks them.
+   */
+  watchers: vscode.Disposable[];
 }
 
 // Each project root gets its own client + server, keyed by the root's fsPath.
@@ -228,7 +235,7 @@ async function startClient(
     serverOptions,
     clientOptions,
   );
-  clients.set(key, { client, output: chan, root });
+  clients.set(key, { client, output: chan, root, watchers: fileEvents });
 
   // Detect an unexpected server exit (a crash) and offer to restart just this one.
   client.onDidChangeState((event) => {
@@ -273,6 +280,12 @@ async function stopClientFor(key: string): Promise<void> {
   suppressCrash.add(key);
   clients.delete(key);
   await managed.client.stop().catch(() => undefined);
+  // vscode-languageclient disposes the listeners it hooked onto these watchers
+  // but not the watchers themselves; dispose them here so we don't leak one per
+  // watch glob on every restart / multi-root re-sync.
+  for (const w of managed.watchers) {
+    w.dispose();
+  }
   if (managed.output !== output) {
     managed.output.dispose();
   }
