@@ -88,6 +88,9 @@ jobs:
     needs: [package, package-universal]
     runs-on: ubuntu-latest
     steps:
+      # Checkout is needed to read the bundled-tool pins out of package.json
+      # for the release notes.
+      - uses: actions/checkout@v6
       - uses: actions/download-artifact@v8
         with:
           path: dist-vsix
@@ -100,8 +103,45 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="manual-$(date +%Y%m%d-%H%M%S)"
           fi
+
+          # Body: auto-generated "What's Changed" (PR list + full changelog
+          # link) followed by install docs and the bundled tool versions. PR
+          # titles may contain backticks, so the generated half never passes
+          # through an unquoted heredoc; the static half is a quoted heredoc.
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" \
+            -q .body > body.md || echo "_Generated notes unavailable._" > body.md
+          cat >> body.md <<'NOTES'
+
+          ## Install
+
+          Download the VSIX for your platform and install it (or use VS Code's "Extensions: Install from VSIX…" command):
+
+          ```sh
+          code --install-extension m1-vscode-<platform>.vsix
+          ```
+
+          | Platform | Asset |
+          | --- | --- |
+          | Linux x86_64 | `m1-vscode-linux-x64.vsix` |
+          | macOS Apple Silicon | `m1-vscode-darwin-arm64.vsix` |
+          | Windows x86_64 | `m1-vscode-win32-x64.vsix` |
+          | Anything else (Intel macOS, linux-arm64, …) | `m1-vscode-universal.vsix` |
+
+          The platform VSIXes bundle the matching m1-lsp server and m1-project CLI. The universal VSIX bundles no server — point `m1.server.path` at your own m1-lsp build (see README).
+          NOTES
+          {
+            echo ""
+            echo "## Bundled tools (platform VSIXes)"
+            echo ""
+            echo "| Tool | Version |"
+            echo "| --- | --- |"
+            echo "| m1-lsp | $(grep -o '"serverVersion": "[^"]*"' package.json | cut -d'"' -f4) |"
+            echo "| m1-project | $(grep -o '"projectVersion": "[^"]*"' package.json | cut -d'"' -f4) |"
+          } >> body.md
+
           gh release create "$TAG" dist-vsix/*.vsix \
             --repo "${{ github.repository }}" \
             --title "m1-vscode $TAG" \
-            --notes "Per-platform VS Code extension builds, each bundling the pinned m1-lsp server." \
+            --notes-file body.md \
             || gh release upload "$TAG" dist-vsix/*.vsix --repo "${{ github.repository }}" --clobber
