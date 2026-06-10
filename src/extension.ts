@@ -17,7 +17,13 @@ import {
   initProjectCommands,
   setCallRate,
   setChannelSecurity,
+  setChannelType,
+  setChannelUnit,
 } from "./project-commands";
+import { registerProjectTree } from "./project-tree";
+import { showSecurityMatrix } from "./security-matrix";
+import { refreshStatusBar, registerStatusBar } from "./status-bar";
+import { registerTaskProvider } from "./tasks";
 import { findProjectDir } from "./utils";
 
 const execFileAsync = promisify(execFile);
@@ -39,7 +45,17 @@ export async function activate(
     // a lighter workspace/didChangeWatchedFiles reload (see project-commands.ts).
     vscode.commands.registerCommand("m1.restartServer", async () => {
       await stopAllClients();
+      // #73 / #75 / #77: status bar, task provider, project explorer.
+      registerStatusBar(context);
+      registerTaskProvider(context, (line) => output.appendLine(line));
+      registerProjectTree(context, {
+        setType: setChannelType,
+        setUnit: setChannelUnit,
+        setSecurity: setChannelSecurity,
+      });
+
       await syncClients(context);
+      refreshStatusBar();
     }),
     vscode.commands.registerCommand("m1.showDiagnosticInfo", () =>
       showDiagnosticInfo(context),
@@ -55,6 +71,17 @@ export async function activate(
     ),
     vscode.commands.registerCommand("m1.setCallRate", () =>
       setCallRate(context),
+    ),
+    // #72: the last two m1-project subcommands get first-class commands.
+    vscode.commands.registerCommand("m1.setChannelType", () =>
+      setChannelType(context),
+    ),
+    vscode.commands.registerCommand("m1.setChannelUnit", () =>
+      setChannelUnit(context),
+    ),
+    // #78: channels × access level audit table.
+    vscode.commands.registerCommand("m1.showSecurityMatrix", () =>
+      showSecurityMatrix(context),
     ),
     // Target of the clickable execution-rate code lens (#175): jump to a 0-based
     // line in a file (the script's SelectedTrigger declaration in Project.m1prj).

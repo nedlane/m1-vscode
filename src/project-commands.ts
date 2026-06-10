@@ -164,15 +164,13 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
 
 export function setChannelSecurity(
   context: vscode.ExtensionContext,
+  preselected?: string,
 ): Promise<void> {
   return withProjectFile("Set security", async (projectFile) => {
-    const component = await vscode.window.showInputBox({
-      title: "Set Component Security",
-      prompt: "Fully-qualified component name",
-      placeHolder: "Root.Engine.Speed",
-      validateInput: (v) =>
-        /^Root\..+/.test(v.trim()) ? undefined : "Name must be fully qualified",
-    });
+    const component = await pickComponent(
+      "Set Component Security",
+      preselected,
+    );
     if (!component) {
       return undefined;
     }
@@ -188,11 +186,11 @@ export function setChannelSecurity(
       "--project",
       projectFile,
       "--component",
-      component.trim(),
+      component,
       "--security",
       security,
     ]);
-    return `${component.trim()} security → ${security}`;
+    return `${component} security → ${security}`;
   });
 }
 
@@ -243,4 +241,125 @@ export function setCallRate(context: vscode.ExtensionContext): Promise<void> {
     ]);
     return `${script.trim()} call rate → ${pick}`;
   });
+}
+
+/** Prompt for a component unless the caller (e.g. the project tree) supplied one. */
+async function pickComponent(
+  title: string,
+  preselected?: string,
+): Promise<string | undefined> {
+  if (preselected) {
+    return preselected;
+  }
+  const component = await vscode.window.showInputBox({
+    title,
+    prompt: "Fully-qualified component name",
+    placeHolder: "Root.Engine.Speed",
+    validateInput: (v) =>
+      /^Root\..+/.test(v.trim()) ? undefined : "Name must be fully qualified",
+  });
+  return component?.trim() || undefined;
+}
+
+/** The storage types m1-project's set-type accepts (plus enum references typed manually). */
+const STORAGE_TYPES = [
+  "f32",
+  "f64",
+  "u8",
+  "u16",
+  "u32",
+  "s8",
+  "s16",
+  "s32",
+  "bool",
+];
+
+/** `m1.setChannelType` (#72): set a component's storage type via m1-project. */
+export function setChannelType(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return withProjectFile("Set type", async (projectFile) => {
+    const component = await pickComponent("Set Component Type", preselected);
+    if (!component) {
+      return undefined;
+    }
+    const type = await vscode.window.showQuickPick(STORAGE_TYPES, {
+      title: "Storage type",
+    });
+    if (!type) {
+      return undefined;
+    }
+    await runProject(context, [
+      "set-type",
+      "--project",
+      projectFile,
+      "--component",
+      component,
+      "--type",
+      type,
+    ]);
+    return `${component} type → ${type}`;
+  });
+}
+
+/** `m1.setChannelUnit` (#72): set a component's display unit via m1-project. */
+export function setChannelUnit(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return withProjectFile("Set unit", async (projectFile) => {
+    const component = await pickComponent("Set Component Unit", preselected);
+    if (!component) {
+      return undefined;
+    }
+    const unit = await vscode.window.showInputBox({
+      title: "Display unit",
+      prompt: "e.g. rpm, kPa, °C",
+    });
+    if (!unit?.trim()) {
+      return undefined;
+    }
+    await runProject(context, [
+      "set-unit",
+      "--project",
+      projectFile,
+      "--component",
+      component,
+      "--unit",
+      unit.trim(),
+    ]);
+    return `${component} unit → ${unit.trim()}`;
+  });
+}
+
+/** One entry of `m1-project list-components --json` (#77/#78 data source). */
+export interface ComponentEntry {
+  path: string;
+  classname: string;
+  type: string | null;
+  unit: string | null;
+  security: string | null;
+  call_rate: string | null;
+}
+
+/**
+ * The project's component tree via `m1-project list-components --json` —
+ * the shared data source for the Project Explorer tree (#77) and the
+ * security-matrix webview (#78). Works without a running language server.
+ */
+export async function listComponents(
+  context: vscode.ExtensionContext,
+): Promise<{ projectFile: string; components: ComponentEntry[] } | undefined> {
+  const projectFile = await activeProjectFile();
+  if (!projectFile || !fs.existsSync(projectFile)) {
+    return undefined;
+  }
+  const out = await runProject(context, [
+    "list-components",
+    "--project",
+    projectFile,
+    "--json",
+  ]);
+  return { projectFile, components: JSON.parse(out) as ComponentEntry[] };
 }
