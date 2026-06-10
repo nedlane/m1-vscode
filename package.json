@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.5.8",
+  "version": "0.6.0",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -20,9 +20,9 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.30.5",
+    "serverVersion": "v0.31.0",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.2.6"
+    "projectVersion": "v0.3.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -127,6 +127,34 @@
       {
         "command": "m1.setCallRate",
         "title": "M1: Set Script Call Rate…"
+      },
+      {
+        "command": "m1.setChannelType",
+        "title": "M1: Set Component Type"
+      },
+      {
+        "command": "m1.setChannelUnit",
+        "title": "M1: Set Component Unit"
+      },
+      {
+        "command": "m1.showSecurityMatrix",
+        "title": "M1: Show Security Matrix"
+      },
+      {
+        "command": "m1.projectTree.refresh",
+        "title": "M1: Refresh Project Explorer"
+      },
+      {
+        "command": "m1.projectTree.setType",
+        "title": "Set Type…"
+      },
+      {
+        "command": "m1.projectTree.setUnit",
+        "title": "Set Unit…"
+      },
+      {
+        "command": "m1.projectTree.setSecurity",
+        "title": "Set Security…"
       }
     ],
     "keybindings": [
@@ -163,6 +191,18 @@
         {
           "command": "m1.setCallRate",
           "when": "editorLangId == m1scr"
+        },
+        {
+          "command": "m1.projectTree.setType",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.setUnit",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.setSecurity",
+          "when": "false"
         }
       ],
       "editor/context": [
@@ -175,6 +215,30 @@
           "command": "m1.showDiagnosticInfo",
           "when": "editorLangId == m1scr",
           "group": "m1@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "m1.projectTree.refresh",
+          "when": "view == m1ProjectExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "m1.projectTree.setType",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter/",
+          "group": "m1@1"
+        },
+        {
+          "command": "m1.projectTree.setUnit",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter/",
+          "group": "m1@2"
+        },
+        {
+          "command": "m1.projectTree.setSecurity",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Component/",
+          "group": "m1@3"
         }
       ]
     },
@@ -253,7 +317,114 @@
           "description": "If non-empty, run ONLY these diagnostic codes (lint L*, typecheck T*). A workspace m1-tools.toml [diagnostics] overrides this."
         }
       }
-    }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "m1ProjectExplorer",
+          "name": "M1 Project",
+          "when": "workspaceContains:**/Project.m1prj",
+          "icon": "$(circuit-board)"
+        }
+      ]
+    },
+    "snippets": [
+      {
+        "language": "m1scr",
+        "path": "./snippets/m1scr.json"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "m1",
+        "required": [
+          "tool"
+        ],
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "lint",
+              "fmt"
+            ],
+            "description": "Which M1 tool to run."
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "m1-lint",
+        "owner": "m1",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning|info|hint)\\[([^\\]]+)\\]:\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "code": 5,
+          "message": 6
+        }
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "m1.gettingStarted",
+        "title": "Get started with M1",
+        "description": "Set up the M1 toolchain for MoTeC vehicle code.",
+        "steps": [
+          {
+            "id": "m1.step.server",
+            "title": "Language server",
+            "description": "The bundled m1-lsp starts automatically for `.m1scr` files.\n[Show server status](command:m1.showDiagnosticInfo)",
+            "media": {
+              "markdown": "walkthrough/server.md"
+            },
+            "completionEvents": [
+              "onCommand:m1.showDiagnosticInfo",
+              "onLanguage:m1scr"
+            ]
+          },
+          {
+            "id": "m1.step.open",
+            "title": "Open a script",
+            "description": "Open any `.m1scr` file to get diagnostics, hover, completion and the ⚡/📊/🔒 badges.",
+            "media": {
+              "markdown": "walkthrough/script.md"
+            },
+            "completionEvents": [
+              "onLanguage:m1scr"
+            ]
+          },
+          {
+            "id": "m1.step.config",
+            "title": "Generate m1-tools.toml",
+            "description": "One config file shared by the formatter, linter and both editors.\n[Generate](command:m1.generateConfig)",
+            "media": {
+              "markdown": "walkthrough/config.md"
+            },
+            "completionEvents": [
+              "onCommand:m1.generateConfig"
+            ]
+          },
+          {
+            "id": "m1.step.project",
+            "title": "Edit the project",
+            "description": "Create channels and set types/units/security from the M1 Project explorer or the command palette.\n[Create a channel](command:m1.createChannel)",
+            "media": {
+              "markdown": "walkthrough/project.md"
+            },
+            "completionEvents": [
+              "onCommand:m1.createChannel"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc --noEmit",

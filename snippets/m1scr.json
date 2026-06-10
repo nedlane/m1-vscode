@@ -1,0 +1,62 @@
+{
+  "when block": {
+    "prefix": "when",
+    "body": [
+      "when (${1:Subject})",
+      "{",
+      "\tis (${2:State})",
+      "\t{",
+      "\t\t$0",
+      "\t}",
+      "}",
+      ""
+    ],
+    "description": "when/is dispatch over an enum subject (manual p.32)"
+  },
+  "is arm": {
+    "prefix": "is",
+    "body": ["is (${1:State})", "{", "\t$0", "}"],
+    "description": "one is-arm of a when block"
+  },
+  "if / else": {
+    "prefix": "ifelse",
+    "body": ["if (${1:condition})", "{", "\t$2", "}", "else", "{", "\t$0", "}"],
+    "description": "Allman-style if/else"
+  },
+  "expand loop": {
+    "prefix": "expand",
+    "body": ["expand (${1:I} = ${2:0} to ${3:3})", "{", "\t$0", "}"],
+    "description": "compile-time expansion (bounds: non-negative literals/constants)"
+  },
+  "local with type": {
+    "prefix": "local",
+    "body": [
+      "local <${1|Float,Integer,Unsigned Integer,Boolean|}> ${2:name} = ${3:0};"
+    ],
+    "description": "typed local (the annotation is authoritative)"
+  },
+  "static local": {
+    "prefix": "staticlocal",
+    "body": [
+      "static local <${1|Integer,Unsigned Integer,Float|}> ${2:name} = ${3:0};"
+    ],
+    "description": "static local — initial value must be a literal/enumerator/constant"
+  },
+  "NaN guard": {
+    "prefix": "nanguard",
+    "body": [
+      "${1:Target} = Calculate.IsNAN(${2:value}) ? ${3:fallback} : ${2:value};"
+    ],
+    "description": "the ECU-legal NaN guard the invalid-value tracer recognises"
+  },
+  "annotation: requires finite": {
+    "prefix": "m1finite",
+    "body": ["// @m1:requires-finite"],
+    "description": "mark the next write as a finite-value sink (typecheck T080)"
+  },
+  "annotation: allow": {
+    "prefix": "m1allow",
+    "body": ["// @m1:allow(${1:T002})"],
+    "description": "suppress a diagnostic on the next construct"
+  }
+}
