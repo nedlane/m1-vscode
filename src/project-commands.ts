@@ -48,14 +48,22 @@ async function runProject(
   context: vscode.ExtensionContext,
   args: string[],
 ): Promise<string> {
+  return (await runProjectFull(context, args)).stdout;
+}
+
+/** Like `runProject` but also returns stderr (rename's backing-file warnings). */
+async function runProjectFull(
+  context: vscode.ExtensionContext,
+  args: string[],
+): Promise<{ stdout: string; stderr: string }> {
   const bin = resolveProjectBin(context);
   if (!bin) {
     throw new Error(
       "m1-project binary not found. Set 'm1.project.path', bundle it under server/, or put 'm1-project' on PATH.",
     );
   }
-  const { stdout } = await execFileAsync(bin, args);
-  return stdout;
+  const { stdout, stderr } = await execFileAsync(bin, args);
+  return { stdout, stderr };
 }
 
 /**
@@ -98,7 +106,9 @@ async function withProjectFile(
       return; // cancelled; no edit, no reload
     }
     reloadProjectClients(projectFile);
-    void vscode.window.showInformationMessage(message);
+    if (message) {
+      void vscode.window.showInformationMessage(message);
+    }
   } catch (e) {
     void vscode.window.showErrorMessage(
       `${actionName} failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -330,6 +340,168 @@ export function setChannelUnit(
       unit.trim(),
     ]);
     return `${component} unit → ${unit.trim()}`;
+  });
+}
+
+/** `m1.createGroup` (#81): add a BuiltIn.GroupCompound under an existing group. */
+export function createGroup(
+  context: vscode.ExtensionContext,
+  preselectedParent?: string,
+): Promise<void> {
+  return withProjectFile("Create group", async (projectFile) => {
+    const name = await vscode.window.showInputBox({
+      title: "Create M1 Group",
+      prompt: "Fully-qualified group name (its parent group must exist)",
+      placeHolder: "Root.Engine.NewSubsystem",
+      value: preselectedParent ? `${preselectedParent}.` : undefined,
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim())
+          ? undefined
+          : "Name must be fully qualified, e.g. Root.Group.Name",
+    });
+    if (!name) {
+      return undefined;
+    }
+    await runProject(context, [
+      "create-group",
+      "--project",
+      projectFile,
+      "--name",
+      name.trim(),
+    ]);
+    return `Created group ${name.trim()}`;
+  });
+}
+
+/** `m1.deleteComponent` (#81): destructive — modal confirm, optional subtree. */
+export function deleteComponent(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return withProjectFile("Delete component", async (projectFile) => {
+    const component = await pickComponent("Delete Component", preselected);
+    if (!component) {
+      return undefined;
+    }
+    const choice = await vscode.window.showWarningMessage(
+      `Delete ${component} from the project?`,
+      {
+        modal: true,
+        detail:
+          "This edits Project.m1prj in place. \u201CDelete subtree\u201D also removes every child component.",
+      },
+      "Delete",
+      "Delete subtree",
+    );
+    if (!choice) {
+      return undefined;
+    }
+    const args = [
+      "delete-component",
+      "--project",
+      projectFile,
+      "--name",
+      component,
+    ];
+    if (choice === "Delete subtree") {
+      args.push("--recursive");
+    }
+    await runProject(context, args);
+    return `Deleted ${component}`;
+  });
+}
+
+/** `m1.renameComponent` (#81): rename + SelectedTrigger references; surfaces the
+ * CLI's backing-script-filename guidance for group/function renames. */
+export function renameComponent(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return withProjectFile("Rename component", async (projectFile) => {
+    const component = await pickComponent("Rename Component", preselected);
+    if (!component) {
+      return undefined;
+    }
+    const newName = await vscode.window.showInputBox({
+      title: `Rename ${component}`,
+      prompt: "New single-segment name (no dots)",
+      value: component.split(".").pop(),
+      validateInput: (v) =>
+        v.trim() && !v.includes(".")
+          ? undefined
+          : "Single segment only (no dots) — the parent path stays unchanged",
+    });
+    if (!newName) {
+      return undefined;
+    }
+    const { stderr } = await runProjectFull(context, [
+      "rename-component",
+      "--project",
+      projectFile,
+      "--name",
+      component,
+      "--new-name",
+      newName.trim(),
+    ]);
+    // The CLI warns on stderr when backing .m1scr files follow the
+    // path-encoding filename convention and may need renaming too.
+    if (stderr.trim()) {
+      output.appendLine(stderr.trim());
+      void vscode.window.showWarningMessage(
+        `Renamed ${component} \u2192 ${newName.trim()}. ${stderr.trim()}`,
+      );
+      return ""; // already toasted; suppress the info toast (but still reload)
+    }
+    return `Renamed ${component} \u2192 ${newName.trim()}`;
+  });
+}
+
+/** Findings from `m1-project validate`, rendered into the Problems panel. */
+let validateDiagnostics: vscode.DiagnosticCollection | undefined;
+
+/** `m1.validateProject` (#81): run the structural validation and load findings
+ * (`ERROR path: msg` / `WARN path: msg`) into Problems against the .m1prj. */
+export function validateProject(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  return withProjectFile("Validate project", async (projectFile) => {
+    validateDiagnostics ??=
+      vscode.languages.createDiagnosticCollection("m1-project");
+    let out: string;
+    try {
+      out = await runProject(context, ["validate", "--project", projectFile]);
+    } catch (e) {
+      // validate exits 1 on error-level findings; the report is still on stdout.
+      const stdout = (e as { stdout?: string }).stdout;
+      if (!stdout) {
+        throw e;
+      }
+      out = stdout;
+    }
+    const uri = vscode.Uri.file(projectFile);
+    const findings: vscode.Diagnostic[] = [];
+    for (const line of out.split("\n")) {
+      const m = /^(ERROR|WARN) (.+)$/.exec(line.trim());
+      if (!m) {
+        continue;
+      }
+      const d = new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 0),
+        m[2],
+        m[1] === "ERROR"
+          ? vscode.DiagnosticSeverity.Error
+          : vscode.DiagnosticSeverity.Warning,
+      );
+      d.source = "m1-project";
+      findings.push(d);
+    }
+    validateDiagnostics.set(uri, findings);
+    const summary = out.trim().split("\n").pop() ?? "done";
+    if (findings.length > 0) {
+      void vscode.window.showWarningMessage(`Project validation: ${summary}`);
+      return ""; // already toasted as a warning; no model change, but reload is harmless
+    }
+    return `Project validation: ${summary}`;
   });
 }
 

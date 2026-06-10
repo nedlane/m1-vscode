@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -137,6 +137,22 @@
         "title": "M1: Set Component Unit"
       },
       {
+        "command": "m1.createGroup",
+        "title": "M1: Create Group…"
+      },
+      {
+        "command": "m1.deleteComponent",
+        "title": "M1: Delete Component…"
+      },
+      {
+        "command": "m1.renameComponent",
+        "title": "M1: Rename Component…"
+      },
+      {
+        "command": "m1.validateProject",
+        "title": "M1: Validate Project"
+      },
+      {
         "command": "m1.showSecurityMatrix",
         "title": "M1: Show Security Matrix"
       },
@@ -155,6 +171,18 @@
       {
         "command": "m1.projectTree.setSecurity",
         "title": "Set Security…"
+      },
+      {
+        "command": "m1.projectTree.createGroup",
+        "title": "Create Group…"
+      },
+      {
+        "command": "m1.projectTree.rename",
+        "title": "Rename…"
+      },
+      {
+        "command": "m1.projectTree.delete",
+        "title": "Delete…"
       }
     ],
     "keybindings": [
@@ -186,6 +214,18 @@
           "command": "m1.createChannel"
         },
         {
+          "command": "m1.createGroup"
+        },
+        {
+          "command": "m1.deleteComponent"
+        },
+        {
+          "command": "m1.renameComponent"
+        },
+        {
+          "command": "m1.validateProject"
+        },
+        {
           "command": "m1.setChannelSecurity"
         },
         {
@@ -202,6 +242,18 @@
         },
         {
           "command": "m1.projectTree.setSecurity",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.createGroup",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.rename",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.delete",
           "when": "false"
         }
       ],
@@ -239,6 +291,21 @@
           "command": "m1.projectTree.setSecurity",
           "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Component/",
           "group": "m1@3"
+        },
+        {
+          "command": "m1.projectTree.createGroup",
+          "when": "view == m1ProjectExplorer && viewItem == m1Group",
+          "group": "m1structure@1"
+        },
+        {
+          "command": "m1.projectTree.rename",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Group|m1Component/",
+          "group": "m1structure@2"
+        },
+        {
+          "command": "m1.projectTree.delete",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Group|m1Component/",
+          "group": "m1structure@3"
         }
       ]
     },

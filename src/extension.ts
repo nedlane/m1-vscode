@@ -14,11 +14,15 @@ import {
 } from "./lsp-client";
 import {
   createChannel,
+  createGroup,
+  deleteComponent,
   initProjectCommands,
+  renameComponent,
   setCallRate,
   setChannelSecurity,
   setChannelType,
   setChannelUnit,
+  validateProject,
 } from "./project-commands";
 import { registerProjectTree } from "./project-tree";
 import { showSecurityMatrix } from "./security-matrix";
@@ -52,6 +56,9 @@ export async function activate(
         setType: setChannelType,
         setUnit: setChannelUnit,
         setSecurity: setChannelSecurity,
+        createGroup,
+        deleteComponent,
+        renameComponent,
       });
 
       await syncClients(context);
@@ -78,6 +85,20 @@ export async function activate(
     ),
     vscode.commands.registerCommand("m1.setChannelUnit", () =>
       setChannelUnit(context),
+    ),
+    // #81: the m1-project v0.3.0 verbs — create-group / delete-component /
+    // rename-component / validate.
+    vscode.commands.registerCommand("m1.createGroup", () =>
+      createGroup(context),
+    ),
+    vscode.commands.registerCommand("m1.deleteComponent", () =>
+      deleteComponent(context),
+    ),
+    vscode.commands.registerCommand("m1.renameComponent", () =>
+      renameComponent(context),
+    ),
+    vscode.commands.registerCommand("m1.validateProject", () =>
+      validateProject(context),
     ),
     // #78: channels × access level audit table.
     vscode.commands.registerCommand("m1.showSecurityMatrix", () =>
