@@ -111,6 +111,15 @@ export function registerProjectTree(
     setType: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
     setUnit: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
     setSecurity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    createGroup: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    deleteComponent: (
+      c: vscode.ExtensionContext,
+      sel?: string,
+    ) => Promise<void>;
+    renameComponent: (
+      c: vscode.ExtensionContext,
+      sel?: string,
+    ) => Promise<void>;
   },
 ): void {
   const provider = new ProjectTreeProvider(context);
@@ -137,6 +146,29 @@ export function registerProjectTree(
       "m1.projectTree.setSecurity",
       async (node: ComponentNode) => {
         await commands.setSecurity(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    // #81: structural actions — Create Group on groups, Rename/Delete on
+    // every component node.
+    vscode.commands.registerCommand(
+      "m1.projectTree.createGroup",
+      async (node: ComponentNode) => {
+        await commands.createGroup(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.rename",
+      async (node: ComponentNode) => {
+        await commands.renameComponent(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.delete",
+      async (node: ComponentNode) => {
+        await commands.deleteComponent(context, node?.path);
         provider.refresh();
       },
     ),
