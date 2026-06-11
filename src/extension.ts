@@ -42,12 +42,16 @@ import { findProjectDir } from "./utils";
 
 const execFileAsync = promisify(execFile);
 
-let output: vscode.OutputChannel;
+let output: vscode.LogOutputChannel;
 
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  output = vscode.window.createOutputChannel("M1 Language Server");
+  // A log channel (not a plain one): vscode-languageclient ≥10 requires
+  // LogOutputChannel for clientOptions.outputChannel.
+  output = vscode.window.createOutputChannel("M1 Language Server", {
+    log: true,
+  });
   context.subscriptions.push(output);
 
   initLspClient(output, buildSettings);
