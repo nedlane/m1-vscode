@@ -674,7 +674,7 @@
     "test:integration:multiroot": "node test/integration/runTest-multiroot.cjs"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.0.0"
   },
   "overridesComment": "Dev-only (mocha) transitive advisories: force patched diff (>=8.0.3, GHSA-73rr-hh4g-fpgx) and serialize-javascript (>=7.0.5, GHSA-5c6j-r48x-rmvq / GHSA-qj8w-gfj5-8c6v). Test-runner deps only — nothing here is bundled into the published VSIX.",
   "overrides": {

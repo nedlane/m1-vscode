@@ -40,7 +40,7 @@ export const clients = new Map<string, ManagedClient>();
 // the crash handler does not mistake a deliberate shutdown for an unexpected exit.
 const suppressCrash = new Set<string>();
 
-let output: vscode.OutputChannel;
+let output: vscode.LogOutputChannel;
 let currentServerPath: string | undefined;
 let buildSettings: () => Record<string, unknown>;
 
@@ -50,7 +50,7 @@ let buildSettings: () => Record<string, unknown>;
  * Must be called once from `activate` before any client is started.
  */
 export function initLspClient(
-  sharedOutput: vscode.OutputChannel,
+  sharedOutput: vscode.LogOutputChannel,
   settingsFactory: () => Record<string, unknown>,
 ): void {
   output = sharedOutput;
@@ -172,7 +172,7 @@ async function startClient(
   const name = root ? path.basename(root) || "m1" : "m1";
   // Scoped clients log to their own channel so output is attributable per project.
   const chan = scoped
-    ? vscode.window.createOutputChannel(`M1 LSP — ${name}`)
+    ? vscode.window.createOutputChannel(`M1 LSP — ${name}`, { log: true })
     : output;
   context.subscriptions.push(chan);
   chan.appendLine(`Starting m1-lsp: ${serverPath}`);
