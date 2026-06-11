@@ -535,3 +535,320 @@ export async function listComponents(
   ]);
   return { projectFile, components: JSON.parse(out) as ComponentEntry[] };
 }
+
+/** Shared shape of the simple `set-<x> --component --<flag> <value>` verbs. */
+async function setComponentValue(
+  context: vscode.ExtensionContext,
+  opts: {
+    label: string;
+    verb: string;
+    flag: string;
+    prompt: string;
+    placeHolder?: string;
+    preselected?: string;
+  },
+): Promise<void> {
+  return withProjectFile(opts.label, async (projectFile) => {
+    const component = await pickComponent(opts.label, opts.preselected);
+    if (!component) {
+      return undefined;
+    }
+    const value = await vscode.window.showInputBox({
+      title: `${opts.label}: ${component}`,
+      prompt: opts.prompt,
+      placeHolder: opts.placeHolder,
+    });
+    if (!value?.trim()) {
+      return undefined;
+    }
+    await runProject(context, [
+      opts.verb,
+      "--project",
+      projectFile,
+      "--component",
+      component,
+      opts.flag,
+      value.trim(),
+    ]);
+    return `${component} ${opts.verb.replace("set-", "")} → ${value.trim()}`;
+  });
+}
+
+/** `m1.setQuantity` (#92): a component's physical quantity. */
+export function setQuantity(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return setComponentValue(context, {
+    label: "Set quantity",
+    verb: "set-quantity",
+    flag: "--quantity",
+    prompt: "Physical quantity, e.g. Angular Speed",
+    placeHolder: "Angular Speed",
+    preselected,
+  });
+}
+
+/** `m1.setFormat` (#92): a component's display format string. */
+export function setFormat(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return setComponentValue(context, {
+    label: "Set format",
+    verb: "set-format",
+    flag: "--format",
+    prompt: "Display format, e.g. %.1f",
+    placeHolder: "%.1f",
+    preselected,
+  });
+}
+
+/** `m1.setDps` (#92): a component's display decimal places. */
+export function setDps(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return setComponentValue(context, {
+    label: "Set decimal places",
+    verb: "set-dps",
+    flag: "--dps",
+    prompt: "Display decimal places, e.g. 2",
+    placeHolder: "2",
+    preselected,
+  });
+}
+
+/** `m1.addTag` / `m1.removeTag` (#92): the in-editor remedy for the T092
+ * missing-System/Type-tag audit. */
+export function addTag(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return setComponentValue(context, {
+    label: "Add tag",
+    verb: "add-tag",
+    flag: "--tag",
+    prompt: "Tag to add (System/Type tag name)",
+    preselected,
+  });
+}
+
+export function removeTag(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return setComponentValue(context, {
+    label: "Remove tag",
+    verb: "remove-tag",
+    flag: "--tag",
+    prompt: "Tag to remove",
+    preselected,
+  });
+}
+
+/** `m1.setValidation` (#92): MinMax bounds or clear — the in-editor remedy for
+ * T043 parameter-outside-validation findings. */
+export function setValidation(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return withProjectFile("Set validation", async (projectFile) => {
+    const component = await pickComponent("Set Validation", preselected);
+    if (!component) {
+      return undefined;
+    }
+    const kind = await vscode.window.showQuickPick(["MinMax", "None"], {
+      title: `Validation for ${component}`,
+    });
+    if (!kind) {
+      return undefined;
+    }
+    if (kind === "None") {
+      await runProject(context, [
+        "set-validation",
+        "--project",
+        projectFile,
+        "--component",
+        component,
+        "--type",
+        "None",
+      ]);
+      return `${component} validation cleared`;
+    }
+    const min = await vscode.window.showInputBox({
+      title: `Validation minimum for ${component}`,
+      prompt: "Lower bound",
+    });
+    if (!min?.trim()) {
+      return undefined;
+    }
+    const max = await vscode.window.showInputBox({
+      title: `Validation maximum for ${component}`,
+      prompt: "Upper bound",
+    });
+    if (!max?.trim()) {
+      return undefined;
+    }
+    await runProject(context, [
+      "set-validation",
+      "--project",
+      projectFile,
+      "--component",
+      component,
+      "--min",
+      min.trim(),
+      "--max",
+      max.trim(),
+    ]);
+    return `${component} validation → [${min.trim()}, ${max.trim()}]`;
+  });
+}
+
+/** `m1.setDisplayRange` (#92): a component's display min/max. */
+export function setDisplayRange(
+  context: vscode.ExtensionContext,
+  preselected?: string,
+): Promise<void> {
+  return withProjectFile("Set display range", async (projectFile) => {
+    const component = await pickComponent("Set Display Range", preselected);
+    if (!component) {
+      return undefined;
+    }
+    const min = await vscode.window.showInputBox({
+      title: `Display minimum for ${component}`,
+      prompt: "Display range lower bound",
+    });
+    if (!min?.trim()) {
+      return undefined;
+    }
+    const max = await vscode.window.showInputBox({
+      title: `Display maximum for ${component}`,
+      prompt: "Display range upper bound",
+    });
+    if (!max?.trim()) {
+      return undefined;
+    }
+    await runProject(context, [
+      "set-display-range",
+      "--project",
+      projectFile,
+      "--component",
+      component,
+      "--min",
+      min.trim(),
+      "--max",
+      max.trim(),
+    ]);
+    return `${component} display range → [${min.trim()}, ${max.trim()}]`;
+  });
+}
+
+/** `m1.createParameter` / `m1.createFunction` / `m1.createScheduledFunction`
+ * (#92): the remaining create verbs. Parameters share the channel prompts;
+ * functions need only the fully-qualified name. */
+export function createParameter(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  return withProjectFile("Create parameter", async (projectFile) => {
+    const name = await vscode.window.showInputBox({
+      title: "Create M1 Parameter",
+      prompt: "Fully-qualified parameter name (its parent group must exist)",
+      placeHolder: "Root.Engine.Gain",
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim())
+          ? undefined
+          : "Name must be fully qualified, e.g. Root.Group.Name",
+    });
+    if (!name) {
+      return undefined;
+    }
+    const type = await vscode.window.showQuickPick(
+      ["(none)", "f32", "f64", "u8", "u16", "u32", "s8", "s16", "s32", "bool"],
+      {
+        title: "Storage type",
+        placeHolder: "Parameter storage type (optional)",
+      },
+    );
+    if (type === undefined) {
+      return undefined;
+    }
+    const unit = await vscode.window.showInputBox({
+      title: "Unit (optional)",
+      prompt: "Display unit, e.g. rpm — leave blank for none",
+    });
+    if (unit === undefined) {
+      return undefined;
+    }
+    const security = await vscode.window.showQuickPick(
+      ["(none)", "Tune", "Calibration", "Master Calibration", "Resource"],
+      { title: "Security level (optional)" },
+    );
+    if (security === undefined) {
+      return undefined;
+    }
+    const args = [
+      "create-parameter",
+      "--project",
+      projectFile,
+      "--name",
+      name.trim(),
+    ];
+    if (type !== "(none)") {
+      args.push("--type", type);
+    }
+    if (unit.trim()) {
+      args.push("--unit", unit.trim());
+    }
+    if (security !== "(none)") {
+      args.push("--security", security);
+    }
+    await runProject(context, args);
+    return `Created parameter ${name.trim()}`;
+  });
+}
+
+function createFunctionWith(
+  context: vscode.ExtensionContext,
+  verb: "create-function" | "create-scheduled-function",
+  label: string,
+): Promise<void> {
+  return withProjectFile(label, async (projectFile) => {
+    const name = await vscode.window.showInputBox({
+      title: `${label} (M1)`,
+      prompt: "Fully-qualified name (its parent group must exist)",
+      placeHolder: "Root.Engine.Update",
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim())
+          ? undefined
+          : "Name must be fully qualified, e.g. Root.Group.Name",
+    });
+    if (!name) {
+      return undefined;
+    }
+    await runProject(context, [
+      verb,
+      "--project",
+      projectFile,
+      "--name",
+      name.trim(),
+    ]);
+    return `Created ${name.trim()}`;
+  });
+}
+
+export function createFunction(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  return createFunctionWith(context, "create-function", "Create function");
+}
+
+export function createScheduledFunction(
+  context: vscode.ExtensionContext,
+): Promise<void> {
+  return createFunctionWith(
+    context,
+    "create-scheduled-function",
+    "Create scheduled function",
+  );
+}

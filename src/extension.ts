@@ -13,15 +13,25 @@ import {
   syncClients,
 } from "./lsp-client";
 import {
+  addTag,
   createChannel,
+  createFunction,
   createGroup,
+  createParameter,
+  createScheduledFunction,
   deleteComponent,
   initProjectCommands,
+  removeTag,
   renameComponent,
   setCallRate,
   setChannelSecurity,
   setChannelType,
   setChannelUnit,
+  setDisplayRange,
+  setDps,
+  setFormat,
+  setQuantity,
+  setValidation,
   validateProject,
 } from "./project-commands";
 import { registerProjectTree } from "./project-tree";
@@ -59,6 +69,13 @@ export async function activate(
         createGroup,
         deleteComponent,
         renameComponent,
+        setValidation,
+        setQuantity,
+        setFormat,
+        setDps,
+        setDisplayRange,
+        addTag,
+        removeTag,
       });
 
       await syncClients(context);
@@ -99,6 +116,37 @@ export async function activate(
     ),
     vscode.commands.registerCommand("m1.validateProject", () =>
       validateProject(context),
+    ),
+    // #92: the remaining m1-project v0.4.0 verbs.
+    vscode.commands.registerCommand("m1.createParameter", () =>
+      createParameter(context),
+    ),
+    vscode.commands.registerCommand("m1.createFunction", () =>
+      createFunction(context),
+    ),
+    vscode.commands.registerCommand("m1.createScheduledFunction", () =>
+      createScheduledFunction(context),
+    ),
+    vscode.commands.registerCommand("m1.setValidation", (c?: string) =>
+      setValidation(context, c),
+    ),
+    vscode.commands.registerCommand("m1.setQuantity", (c?: string) =>
+      setQuantity(context, c),
+    ),
+    vscode.commands.registerCommand("m1.setFormat", (c?: string) =>
+      setFormat(context, c),
+    ),
+    vscode.commands.registerCommand("m1.setDps", (c?: string) =>
+      setDps(context, c),
+    ),
+    vscode.commands.registerCommand("m1.setDisplayRange", (c?: string) =>
+      setDisplayRange(context, c),
+    ),
+    vscode.commands.registerCommand("m1.addTag", (c?: string) =>
+      addTag(context, c),
+    ),
+    vscode.commands.registerCommand("m1.removeTag", (c?: string) =>
+      removeTag(context, c),
     ),
     // #78: channels × access level audit table.
     vscode.commands.registerCommand("m1.showSecurityMatrix", () =>

@@ -183,6 +183,74 @@
       {
         "command": "m1.projectTree.delete",
         "title": "Delete…"
+      },
+      {
+        "command": "m1.createParameter",
+        "title": "M1: Create Parameter"
+      },
+      {
+        "command": "m1.createFunction",
+        "title": "M1: Create Function"
+      },
+      {
+        "command": "m1.createScheduledFunction",
+        "title": "M1: Create Scheduled Function"
+      },
+      {
+        "command": "m1.setValidation",
+        "title": "M1: Set Validation Bounds"
+      },
+      {
+        "command": "m1.setQuantity",
+        "title": "M1: Set Quantity"
+      },
+      {
+        "command": "m1.setFormat",
+        "title": "M1: Set Display Format"
+      },
+      {
+        "command": "m1.setDps",
+        "title": "M1: Set Decimal Places"
+      },
+      {
+        "command": "m1.setDisplayRange",
+        "title": "M1: Set Display Range"
+      },
+      {
+        "command": "m1.addTag",
+        "title": "M1: Add Tag"
+      },
+      {
+        "command": "m1.removeTag",
+        "title": "M1: Remove Tag"
+      },
+      {
+        "command": "m1.projectTree.setValidation",
+        "title": "M1: Set Validation Bounds"
+      },
+      {
+        "command": "m1.projectTree.setQuantity",
+        "title": "M1: Set Quantity"
+      },
+      {
+        "command": "m1.projectTree.setFormat",
+        "title": "M1: Set Display Format"
+      },
+      {
+        "command": "m1.projectTree.setDps",
+        "title": "M1: Set Decimal Places"
+      },
+      {
+        "command": "m1.projectTree.setDisplayRange",
+        "title": "M1: Set Display Range"
+      },
+      {
+        "command": "m1.projectTree.addTag",
+        "title": "M1: Add Tag"
+      },
+      {
+        "command": "m1.projectTree.removeTag",
+        "title": "M1: Remove Tag"
       }
     ],
     "keybindings": [
@@ -255,6 +323,64 @@
         {
           "command": "m1.projectTree.delete",
           "when": "false"
+        },
+        {
+          "command": "m1.createParameter"
+        },
+        {
+          "command": "m1.createFunction"
+        },
+        {
+          "command": "m1.createScheduledFunction"
+        },
+        {
+          "command": "m1.setValidation"
+        },
+        {
+          "command": "m1.setQuantity"
+        },
+        {
+          "command": "m1.setFormat"
+        },
+        {
+          "command": "m1.setDps"
+        },
+        {
+          "command": "m1.setDisplayRange"
+        },
+        {
+          "command": "m1.addTag"
+        },
+        {
+          "command": "m1.removeTag"
+        },
+        {
+          "command": "m1.projectTree.setValidation",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.setQuantity",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.setFormat",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.setDps",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.setDisplayRange",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.addTag",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.removeTag",
+          "when": "false"
         }
       ],
       "editor/context": [
@@ -306,6 +432,41 @@
           "command": "m1.projectTree.delete",
           "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Group|m1Component/",
           "group": "m1structure@3"
+        },
+        {
+          "command": "m1.projectTree.setValidation",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Parameter/",
+          "group": "m1@4"
+        },
+        {
+          "command": "m1.projectTree.setQuantity",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter/",
+          "group": "m1display@1"
+        },
+        {
+          "command": "m1.projectTree.setFormat",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter/",
+          "group": "m1display@2"
+        },
+        {
+          "command": "m1.projectTree.setDps",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter/",
+          "group": "m1display@3"
+        },
+        {
+          "command": "m1.projectTree.setDisplayRange",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter/",
+          "group": "m1display@4"
+        },
+        {
+          "command": "m1.projectTree.addTag",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Component/",
+          "group": "m1tags@1"
+        },
+        {
+          "command": "m1.projectTree.removeTag",
+          "when": "view == m1ProjectExplorer && viewItem =~ /m1Channel|m1Parameter|m1Component/",
+          "group": "m1tags@2"
         }
       ]
     },
