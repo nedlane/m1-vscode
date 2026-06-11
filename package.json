@@ -689,7 +689,7 @@
     "esbuild": "^0.28.0",
     "glob": "^13.0.6",
     "mocha": "^11.7.6",
-    "prettier": "^3.8.3",
+    "prettier": "^3.8.4",
     "typescript": "^6.0.3",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"
