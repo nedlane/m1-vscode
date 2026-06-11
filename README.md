@@ -41,7 +41,7 @@ server (which in turn drives `m1-fmt`, `m1-core`, `m1-lint`, and the type checke
   (**M1: Show Security Matrix**).
 - **Tasks + problem matcher** — an `m1` task type and an `m1-lint` problem
   matcher, so lint findings from a task run land in the Problems panel.
-- **Walkthrough** — *Get started with M1* (Help → Welcome) covers server setup,
+- **Walkthrough** — _Get started with M1_ (Help → Welcome) covers server setup,
   the project tree and the unified config.
 
 ## Requirements
