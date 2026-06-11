@@ -25,6 +25,12 @@ on:
 permissions:
   contents: read
 
+# Serialize release runs — never cancel one mid-publish; a queued run is
+# idempotent for an already-released version (m1-tools#27).
+concurrency:
+  group: ${{ github.workflow }}-release
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest

@@ -19,6 +19,12 @@ on:
 permissions:
   contents: write
 
+# Serialize tag runs — never cancel one mid-tag; a queued run is idempotent
+# for an already-tagged version (m1-tools#27).
+concurrency:
+  group: ${{ github.workflow }}-release
+  cancel-in-progress: false
+
 jobs:
   tag:
     runs-on: ubuntu-latest
