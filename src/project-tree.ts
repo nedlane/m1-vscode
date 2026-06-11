@@ -120,6 +120,16 @@ export function registerProjectTree(
       c: vscode.ExtensionContext,
       sel?: string,
     ) => Promise<void>;
+    setValidation: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    setQuantity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    setFormat: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    setDps: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    setDisplayRange: (
+      c: vscode.ExtensionContext,
+      sel?: string,
+    ) => Promise<void>;
+    addTag: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    removeTag: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
   },
 ): void {
   const provider = new ProjectTreeProvider(context);
@@ -139,6 +149,56 @@ export function registerProjectTree(
       "m1.projectTree.setUnit",
       async (node: ComponentNode) => {
         await commands.setUnit(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    // #92: the remaining m1-project v0.4.0 verbs on tree nodes.
+    vscode.commands.registerCommand(
+      "m1.projectTree.setValidation",
+      async (node: ComponentNode) => {
+        await commands.setValidation(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.setQuantity",
+      async (node: ComponentNode) => {
+        await commands.setQuantity(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.setFormat",
+      async (node: ComponentNode) => {
+        await commands.setFormat(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.setDps",
+      async (node: ComponentNode) => {
+        await commands.setDps(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.setDisplayRange",
+      async (node: ComponentNode) => {
+        await commands.setDisplayRange(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.addTag",
+      async (node: ComponentNode) => {
+        await commands.addTag(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.removeTag",
+      async (node: ComponentNode) => {
+        await commands.removeTag(context, node?.path);
         provider.refresh();
       },
     ),
