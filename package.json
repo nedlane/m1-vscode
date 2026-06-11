@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -22,7 +22,7 @@
     "serverRepo": "C-Nucifora/m1-lsp",
     "serverVersion": "v0.36.0",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.5.0"
+    "projectVersion": "v0.6.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -177,6 +177,14 @@
         "title": "Create Group…"
       },
       {
+        "command": "m1.projectTree.createConstant",
+        "title": "Create Constant…"
+      },
+      {
+        "command": "m1.projectTree.createTable",
+        "title": "Create Table…"
+      },
+      {
         "command": "m1.projectTree.rename",
         "title": "Rename…"
       },
@@ -187,6 +195,14 @@
       {
         "command": "m1.createParameter",
         "title": "M1: Create Parameter"
+      },
+      {
+        "command": "m1.createConstant",
+        "title": "M1: Create Constant…"
+      },
+      {
+        "command": "m1.createTable",
+        "title": "M1: Create Table…"
       },
       {
         "command": "m1.createFunction",
@@ -317,6 +333,14 @@
           "when": "false"
         },
         {
+          "command": "m1.projectTree.createConstant",
+          "when": "false"
+        },
+        {
+          "command": "m1.projectTree.createTable",
+          "when": "false"
+        },
+        {
           "command": "m1.projectTree.rename",
           "when": "false"
         },
@@ -326,6 +350,12 @@
         },
         {
           "command": "m1.createParameter"
+        },
+        {
+          "command": "m1.createConstant"
+        },
+        {
+          "command": "m1.createTable"
         },
         {
           "command": "m1.createFunction"
@@ -420,6 +450,16 @@
         },
         {
           "command": "m1.projectTree.createGroup",
+          "when": "view == m1ProjectExplorer && viewItem == m1Group",
+          "group": "m1structure@1"
+        },
+        {
+          "command": "m1.projectTree.createConstant",
+          "when": "view == m1ProjectExplorer && viewItem == m1Group",
+          "group": "m1structure@1"
+        },
+        {
+          "command": "m1.projectTree.createTable",
           "when": "view == m1ProjectExplorer && viewItem == m1Group",
           "group": "m1structure@1"
         },
@@ -663,7 +703,7 @@
     "server:fetch": "node scripts/fetch-server.mjs",
     "project:fetch": "node scripts/fetch-project.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
-    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/lsp-smoke.mjs",
+    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node scripts/check-readme-commands.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
     "test:contributes": "node test/contributes.mjs",
     "test:scaffold": "node test/scaffold.mjs",
