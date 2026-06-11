@@ -315,11 +315,33 @@ export function describeClients(context: vscode.ExtensionContext): string {
           : "Not started";
 
   const managed = [...clients.values()];
+  // The truth about what is actually running comes from the initialize
+  // result, not the bundled pin: with a custom m1.serverPath (or a stale
+  // bundle) the two diverge, and showing only the pin lies to the user (#97).
+  const running = managed
+    .map(
+      (m) =>
+        (m.client.initializeResult?.serverInfo as { version?: string })
+          ?.version,
+    )
+    .find((v) => v !== undefined);
+  const pinned = pkg.m1?.serverVersion;
+  // The server reports CARGO_PKG_VERSION ("0.36.0"); the pin carries a tag
+  // prefix ("v0.36.0") — normalise before comparing.
+  const mismatch =
+    running !== undefined &&
+    pinned !== undefined &&
+    running.replace(/^v/, "") !== pinned.replace(/^v/, "");
   const lines = [
     "M1 Language Extension — Diagnostic Info",
     "========================================",
     `Extension version:  ${pkg.version ?? "(unknown)"}`,
-    `Server version:     ${pkg.m1?.serverVersion ?? "(unknown)"} (pinned)`,
+    `Server version:     ${running ?? "(server not started)"}`,
+    `Bundled pin:        ${pinned ?? "(unknown)"}${
+      mismatch
+        ? "  ⚠ running server differs from the pin (custom serverPath or stale bundle — restart the server after updates)"
+        : ""
+    }`,
     `Server path:        ${currentServerPath ?? "(not resolved)"}`,
     `Active servers:     ${managed.length}`,
     "",

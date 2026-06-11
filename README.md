@@ -24,10 +24,25 @@ server (which in turn drives `m1-fmt`, `m1-core`, `m1-lint`, and the type checke
   (`Project.m1prj`) discovered in the workspace, each scoped to its own folder, so
   every project in a multi-root window gets full language features. Single-root
   (and project-less) workspaces use one server as before.
+- **M1 Project explorer** — a tree view of the project's component hierarchy in
+  the Explorer sidebar (appears when the workspace contains a `Project.m1prj`),
+  with context-menu actions on nodes: set type/unit/security/validation/quantity/
+  format/decimal-places/display-range, add/remove tags, create groups, constants
+  and tables under a group, rename and delete.
 - **Project editing** (via the bundled [`m1-project`](https://github.com/nedlane/m1-project)
-  CLI) — commands to **Create Channel**, **Set Component Security**, and **Set Script
-  Call Rate** edit `Project.m1prj` for you with validation, instead of hand-editing
-  XML. After an edit the language servers reload automatically.
+  CLI) — the full verb set as `M1:` commands: create channel / parameter /
+  constant / table (1–3 axes, sources picked from the project's channels) /
+  group / function / scheduled function; set security, type, unit, quantity,
+  validation bounds, display format/DPS/range, call rate; add/remove tags;
+  rename and delete components; **Validate Project**. Every edit is validated by
+  the CLI instead of hand-editing XML, and the language servers reload
+  automatically afterwards.
+- **Security matrix** — an overview webview of every component's security level
+  (**M1: Show Security Matrix**).
+- **Tasks + problem matcher** — an `m1` task type and an `m1-lint` problem
+  matcher, so lint findings from a task run land in the Problems panel.
+- **Walkthrough** — _Get started with M1_ (Help → Welcome) covers server setup,
+  the project tree and the unified config.
 
 ## Requirements
 
@@ -115,6 +130,7 @@ Press `F5` in VS Code to launch an Extension Development Host.
 | Setting                   | Default | Description                                                   |
 | ------------------------- | ------- | ------------------------------------------------------------- |
 | `m1.server.path`          | `""`    | Absolute path to the `m1-lsp` binary.                         |
+| `m1.project.path`         | `""`    | Absolute path to the `m1-project` binary (else bundled/PATH). |
 | `m1.trace.server`         | `off`   | Trace LSP traffic (`off`/`messages`/`verbose`).               |
 | `m1.lint.maxLineLength`   | `88`    | Lint: maximum line length (L001).                             |
 | `m1.lint.maxNestingDepth` | `4`     | Lint: maximum block nesting depth (L008).                     |
@@ -133,18 +149,46 @@ the **M1: Generate m1-tools.toml** command.
 
 ## Commands
 
-- **M1: Restart Language Server**
-- **M1: Show Language Server Output**
-- **M1: Show Diagnostic Info**
-- **M1: Generate m1-tools.toml** — write a fully-defaulted `m1-tools.toml` to the workspace.
+Server / tooling:
+
+- **M1: Restart Language Server** · **M1: Show Language Server Output**
+- **M1: Show Diagnostic Info** — extension, running-server and pinned versions,
+  paths, per-client capabilities
+- **M1: Generate m1-tools.toml** — write a fully-defaulted `m1-tools.toml` to the workspace
+
+Project editing (all backed by the bundled `m1-project` CLI; see Features):
+
+- Create: **M1: Create Channel…**, **M1: Create Parameter**,
+  **M1: Create Constant…**, **M1: Create Table…** (1–3 axes),
+  **M1: Create Group…**, **M1: Create Function**,
+  **M1: Create Scheduled Function**
+- Set: **M1: Set Component Security…**, **M1: Set Component Type**,
+  **M1: Set Component Unit**, **M1: Set Quantity**,
+  **M1: Set Validation Bounds**, **M1: Set Display Format**,
+  **M1: Set Decimal Places**, **M1: Set Display Range**,
+  **M1: Set Script Call Rate…**
+- **M1: Add Tag** / **M1: Remove Tag**, **M1: Rename Component…**,
+  **M1: Delete Component…**
+- **M1: Validate Project**, **M1: Show Security Matrix**,
+  **M1: Refresh Project Explorer**
+
+The same actions are available from the **M1 Project** tree's context menus.
+This list is guarded against rot: `node scripts/check-readme-commands.mjs`
+(run in CI alongside the contributes test) fails when a contributed command
+is missing here.
 
 ## Layout
 
 ```
-src/extension.ts                  LSP client (vscode-languageclient)
+src/extension.ts                  activation + command registration
+src/lsp-client.ts                 LSP client lifecycle (vscode-languageclient)
+src/project-commands.ts           m1-project verbs behind the M1: commands
+src/project-tree.ts               the M1 Project explorer view
+src/security-matrix.ts            the security-matrix webview
+src/tasks.ts                      the `m1` task type + problem matcher
 syntaxes/m1scr.tmLanguage.json    TextMate highlighting
 language-configuration.json       comments / brackets / indent
-server/                           (optional) bundled m1-lsp binary
+server/                           (optional) bundled m1-lsp + m1-project binaries
 ```
 
 See `SPEC.md` and `PLAN.md` for design and rationale.

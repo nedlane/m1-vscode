@@ -112,6 +112,8 @@ export function registerProjectTree(
     setUnit: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
     setSecurity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
     createGroup: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    createConstant: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    createTable: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
     deleteComponent: (
       c: vscode.ExtensionContext,
       sel?: string,
@@ -215,6 +217,21 @@ export function registerProjectTree(
       "m1.projectTree.createGroup",
       async (node: ComponentNode) => {
         await commands.createGroup(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    // #98: the m1-project v0.6.0 create verbs on group nodes.
+    vscode.commands.registerCommand(
+      "m1.projectTree.createConstant",
+      async (node: ComponentNode) => {
+        await commands.createConstant(context, node?.path);
+        provider.refresh();
+      },
+    ),
+    vscode.commands.registerCommand(
+      "m1.projectTree.createTable",
+      async (node: ComponentNode) => {
+        await commands.createTable(context, node?.path);
         provider.refresh();
       },
     ),

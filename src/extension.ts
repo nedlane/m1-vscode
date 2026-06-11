@@ -15,10 +15,12 @@ import {
 import {
   addTag,
   createChannel,
+  createConstant,
   createFunction,
   createGroup,
   createParameter,
   createScheduledFunction,
+  createTable,
   deleteComponent,
   initProjectCommands,
   removeTag,
@@ -71,6 +73,8 @@ export async function activate(
         setUnit: setChannelUnit,
         setSecurity: setChannelSecurity,
         createGroup,
+        createConstant,
+        createTable,
         deleteComponent,
         renameComponent,
         setValidation,
@@ -124,6 +128,12 @@ export async function activate(
     // #92: the remaining m1-project v0.4.0 verbs.
     vscode.commands.registerCommand("m1.createParameter", () =>
       createParameter(context),
+    ),
+    vscode.commands.registerCommand("m1.createConstant", () =>
+      createConstant(context),
+    ),
+    vscode.commands.registerCommand("m1.createTable", () =>
+      createTable(context),
     ),
     vscode.commands.registerCommand("m1.createFunction", () =>
       createFunction(context),

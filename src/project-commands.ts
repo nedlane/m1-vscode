@@ -852,3 +852,186 @@ export function createScheduledFunction(
     "Create scheduled function",
   );
 }
+
+/** QuickPick over the project's channels (for table axis sources), falling
+ * back to a free-text input box if list-components fails. */
+async function pickChannel(
+  context: vscode.ExtensionContext,
+  projectFile: string,
+  title: string,
+  optional: boolean,
+): Promise<string | undefined> {
+  let paths: string[] = [];
+  try {
+    const json = await runProject(context, [
+      "list-components",
+      "--json",
+      "--project",
+      projectFile,
+    ]);
+    const entries = JSON.parse(json) as {
+      path: string;
+      classname: string;
+    }[];
+    paths = entries
+      .filter((e) => e.classname === "BuiltIn.Channel")
+      .map((e) => e.path);
+  } catch {
+    // fall through to the input box
+  }
+  if (paths.length === 0) {
+    const typed = await vscode.window.showInputBox({
+      title,
+      prompt: "Axis source channel (fully-qualified)",
+      placeHolder: "Root.Engine.Speed",
+    });
+    return typed?.trim() || undefined;
+  }
+  const items = optional ? ["(none — skip this axis)", ...paths] : paths;
+  const picked = await vscode.window.showQuickPick(items, { title });
+  if (picked === undefined) {
+    return undefined;
+  }
+  return picked.startsWith("(none") ? "" : picked;
+}
+
+/** `m1.createConstant` (#98): add a BuiltIn.Constant with its literal Value. */
+export function createConstant(
+  context: vscode.ExtensionContext,
+  preselectedParent?: string,
+): Promise<void> {
+  return withProjectFile("Create constant", async (projectFile) => {
+    const name = await vscode.window.showInputBox({
+      title: "Create M1 Constant",
+      prompt: "Fully-qualified constant name (its parent group must exist)",
+      placeHolder: "Root.CAN.Bus Select",
+      value: preselectedParent ? `${preselectedParent}.` : undefined,
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim())
+          ? undefined
+          : "Name must be fully qualified, e.g. Root.Group.Name",
+    });
+    if (!name) {
+      return undefined;
+    }
+    const value = await vscode.window.showInputBox({
+      title: "Constant value",
+      prompt: "The literal Value M1-Build shows (e.g. CAN Bus 1, 4096)",
+      validateInput: (v) => (v.trim() ? undefined : "Value must not be empty"),
+    });
+    if (!value) {
+      return undefined;
+    }
+    await runProject(context, [
+      "create-constant",
+      "--project",
+      projectFile,
+      "--name",
+      name.trim(),
+      "--value",
+      value.trim(),
+    ]);
+    return `Created constant ${name.trim()}`;
+  });
+}
+
+/** `m1.createTable` (#98): add a BuiltIn.Table with 1–3 axes; axis sources are
+ * picked from the project's channels and validated/relativized by m1-project. */
+export function createTable(
+  context: vscode.ExtensionContext,
+  preselectedParent?: string,
+): Promise<void> {
+  return withProjectFile("Create table", async (projectFile) => {
+    const name = await vscode.window.showInputBox({
+      title: "Create M1 Table",
+      prompt: "Fully-qualified table name (its parent group must exist)",
+      placeHolder: "Root.Engine.Torque Map",
+      value: preselectedParent ? `${preselectedParent}.` : undefined,
+      validateInput: (v) =>
+        /^Root\..+/.test(v.trim())
+          ? undefined
+          : "Name must be fully qualified, e.g. Root.Group.Name",
+    });
+    if (!name) {
+      return undefined;
+    }
+    const axisX = await pickChannel(
+      context,
+      projectFile,
+      "X-axis source channel",
+      false,
+    );
+    if (!axisX) {
+      return undefined;
+    }
+    const xSites = await vscode.window.showInputBox({
+      title: "X-axis sites (optional)",
+      prompt: "Maximum X-axis breakpoints — leave blank for the default",
+      validateInput: (v) =>
+        !v.trim() || /^\d+$/.test(v.trim()) ? undefined : "Enter a number",
+    });
+    if (xSites === undefined) {
+      return undefined;
+    }
+    const args = [
+      "create-table",
+      "--project",
+      projectFile,
+      "--name",
+      name.trim(),
+      "--axis-x",
+      axisX,
+    ];
+    if (xSites.trim()) {
+      args.push("--x-sites", xSites.trim());
+    }
+    const axisY = await pickChannel(
+      context,
+      projectFile,
+      "Y-axis source channel (optional)",
+      true,
+    );
+    if (axisY === undefined) {
+      return undefined;
+    }
+    if (axisY) {
+      args.push("--axis-y", axisY);
+      const ySites = await vscode.window.showInputBox({
+        title: "Y-axis sites (optional)",
+        prompt: "Maximum Y-axis breakpoints — leave blank for the default",
+        validateInput: (v) =>
+          !v.trim() || /^\d+$/.test(v.trim()) ? undefined : "Enter a number",
+      });
+      if (ySites === undefined) {
+        return undefined;
+      }
+      if (ySites.trim()) {
+        args.push("--y-sites", ySites.trim());
+      }
+      const axisZ = await pickChannel(
+        context,
+        projectFile,
+        "Z-axis source channel (optional)",
+        true,
+      );
+      if (axisZ === undefined) {
+        return undefined;
+      }
+      if (axisZ) {
+        args.push("--axis-z", axisZ);
+      }
+    }
+    const security = await vscode.window.showQuickPick(
+      ["(none)", "Tune", "Calibration", "Master Calibration", "Resource"],
+      { title: "Security level (optional)" },
+    );
+    if (security === undefined) {
+      return undefined;
+    }
+    if (security !== "(none)") {
+      args.push("--security", security);
+    }
+    await runProject(context, args);
+    return `Created table ${name.trim()}`;
+  });
+}
