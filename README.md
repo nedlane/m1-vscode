@@ -40,7 +40,7 @@ other uncovered platforms: see below.)
   validate). Every edit is validated by the CLI instead of hand-editing XML,
   and the language servers reload automatically afterwards.
 - **Extras** — a security-matrix overview webview, an `m1` task type with
-  problem matcher, and a *Get started with M1* walkthrough.
+  problem matcher, and a _Get started with M1_ walkthrough.
 
 ## The server binary
 
