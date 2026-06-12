@@ -204,11 +204,21 @@ async function startClient(
           { scheme: "untitled", language: "m1scr" },
         ];
 
-  // Watch the script sources plus the project file and the workspace config, so
-  // the server is told (via workspace/didChangeWatchedFiles) when any of them
-  // change. The .m1prj / m1-tools.toml events drive a lightweight reload (see
-  // reloadProjectClients) instead of a full server restart.
-  const watchGlobs = ["**/*.m1scr", "**/*.m1prj", "**/m1-tools.toml"];
+  // Watch the script sources plus every file the server's project model is
+  // built from, so it is told (via workspace/didChangeWatchedFiles) when any
+  // of them change: .m1prj (the project), parameters.m1cfg (parameter value
+  // types), .m1dbc (CAN signal metadata) and m1-tools.toml (workspace
+  // config). Without .m1cfg/.m1dbc here, edits to those files left hover/
+  // completion/diagnostics stale until a server restart (#104). The non-source
+  // events drive a lightweight reload (see reloadProjectClients), not a
+  // restart.
+  const watchGlobs = [
+    "**/*.m1scr",
+    "**/*.m1prj",
+    "**/*.m1cfg",
+    "**/*.m1dbc",
+    "**/m1-tools.toml",
+  ];
   const fileEvents = watchGlobs.map((glob) =>
     vscode.workspace.createFileSystemWatcher(
       rootUri ? new vscode.RelativePattern(rootUri, glob) : glob,

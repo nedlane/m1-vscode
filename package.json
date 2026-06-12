@@ -550,6 +550,11 @@
           "default": 10,
           "description": "Lint: maximum cyclomatic complexity (L009). A workspace m1-tools.toml [lint] overrides this."
         },
+        "m1.lint.maxCognitiveComplexity": {
+          "type": "integer",
+          "default": 15,
+          "description": "Lint: maximum cognitive complexity (L019). A workspace m1-tools.toml [lint] overrides this."
+        },
         "m1.lint.exclude": {
           "type": "array",
           "items": {
@@ -568,6 +573,44 @@
           "default": 2,
           "description": "Formatter: maximum consecutive blank lines to keep. A workspace m1-tools.toml [format] overrides this."
         },
+        "m1.format.indentStyle": {
+          "type": "string",
+          "enum": [
+            "tab",
+            "spaces"
+          ],
+          "default": "tab",
+          "description": "Formatter + lint L010: indentation style (the manual mandates tabs). A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.format.indentWidth": {
+          "type": "integer",
+          "default": 4,
+          "description": "Formatter: columns per indent level (spaces count, or assumed tab display width). A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.format.braceStyle": {
+          "type": "string",
+          "enum": [
+            "allman",
+            "kr"
+          ],
+          "default": "allman",
+          "description": "Formatter: opening-brace placement (the manual mandates Allman). A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.format.continuationIndent": {
+          "type": "integer",
+          "default": 1,
+          "description": "Formatter: extra indent levels for wrapped continuation lines. A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.format.alignAssignments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Formatter: align the = of contiguous simple assignments (opt-in). A workspace m1-tools.toml [format] overrides this."
+        },
+        "m1.format.reflowComments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Formatter: split over-width // comment lines (opt-in). A workspace m1-tools.toml [format] overrides this."
+        },
         "m1.diagnostics.ignore": {
           "type": "array",
           "items": {
@@ -583,6 +626,14 @@
           },
           "default": [],
           "description": "If non-empty, run ONLY these diagnostic codes (lint L*, typecheck T*). A workspace m1-tools.toml [diagnostics] overrides this."
+        },
+        "m1.diagnostics.ignoreSymbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Suppress a project-level code for one symbol: CODE:Symbol.Path entries (e.g. T050:Root.Engine.Speed). A workspace m1-tools.toml [diagnostics] overrides this."
         }
       }
     },
@@ -703,7 +754,7 @@
     "server:fetch": "node scripts/fetch-server.mjs",
     "project:fetch": "node scripts/fetch-project.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
-    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node scripts/check-readme-commands.mjs && node test/lsp-smoke.mjs",
+    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
     "test:contributes": "node test/contributes.mjs",
     "test:scaffold": "node test/scaffold.mjs",
