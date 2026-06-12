@@ -100,3 +100,36 @@ jobs:
               --title "chore: bump m1-lsp server to $LATEST (v$NEWVER)" \
               --body "$BODY"
           fi
+
+      # Pin-freshness signal (#105): a sync PR that sits unmerged keeps the
+      # extension bundling an older server with nothing escalating. When the
+      # pin is behind and the open sync PR is older than 3 days (or the PR is
+      # missing entirely on a behind pin), open/refresh one tracking issue —
+      # an issue rather than a failing badge, since the trigger is external.
+      - name: Escalate a stale sync PR
+        if: steps.v.outputs.latest != steps.v.outputs.pinned
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          PINNED: ${{ steps.v.outputs.pinned }}
+          LATEST: ${{ steps.v.outputs.latest }}
+        run: |
+          set -euo pipefail
+          BRANCH="sync/server-$LATEST"
+          created=$(gh pr view "$BRANCH" --json state,createdAt \
+            -q 'select(.state == "OPEN") | .createdAt' 2>/dev/null || true)
+          if [ -n "$created" ]; then
+            age_days=$(( ( $(date +%s) - $(date -d "$created" +%s) ) / 86400 ))
+            echo "sync PR for $LATEST open for ${age_days}d"
+            [ "$age_days" -lt 3 ] && exit 0
+          else
+            echo "pin behind ($PINNED < $LATEST) with no open sync PR"
+          fi
+          title="stale server pin: extension still bundles m1-lsp $PINNED"
+          body="The bundled server pin is **$PINNED** but the latest m1-lsp release is **$LATEST**. The sync PR (branch \`sync/server-$LATEST\`) is either missing or has been open for 3+ days — merge it (or fix what blocks it) so releases stop shipping the older server. _Refreshed automatically by sync-server.yml._"
+          existing=$(gh issue list --state open --search "in:title \"stale server pin\"" \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

@@ -1,13 +1,14 @@
 // Fetches the pinned m1-project binary from its GitHub Release into server/.
 // Replaces any manual `cp` of a locally-built binary.
 //
-// Version + repo are pinned in package.json under "m1": { serverRepo, serverVersion }.
-// Auth: uses the `gh` CLI (honours GH_TOKEN), so it works for the private m1-lsp repo.
+// Version + repo are pinned in package.json under "m1": { projectRepo, projectVersion }.
+// Auth: uses the `gh` CLI (honours GH_TOKEN) when available; m1-project's repo
+// is public, so an unauthenticated download also works.
 //
 // Usage:
-//   node scripts/fetch-server.mjs                 # current platform, pinned version
-//   node scripts/fetch-server.mjs --target x86_64-pc-windows-msvc
-//   node scripts/fetch-server.mjs --version v0.2.0 --out server
+//   node scripts/fetch-project.mjs                 # current platform, pinned version
+//   node scripts/fetch-project.mjs --target x86_64-pc-windows-msvc
+//   node scripts/fetch-project.mjs --version v0.2.0 --out server
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

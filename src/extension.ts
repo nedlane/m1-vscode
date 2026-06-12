@@ -250,16 +250,26 @@ function buildSettings(): {
     format: {} as Record<string, unknown>,
     diagnostics: {} as Record<string, unknown>,
   };
-  // [vsCodeSection.vsCodeKey, tomlSection, tomlKey]
+  // [vsCodeSection.vsCodeKey, tomlSection, tomlKey] — one entry per contributed
+  // m1.lint/m1.format/m1.diagnostics setting; test/settings-surface.mjs fails
+  // if this map and contributes.configuration drift apart (#106).
   const map: [string, "lint" | "format" | "diagnostics", string][] = [
     ["lint.maxLineLength", "lint", "max_line_length"],
     ["lint.maxNestingDepth", "lint", "max_nesting_depth"],
     ["lint.maxComplexity", "lint", "max_complexity"],
+    ["lint.maxCognitiveComplexity", "lint", "max_cognitive_complexity"],
     ["lint.exclude", "lint", "exclude"],
     ["format.lineWidth", "format", "line_width"],
     ["format.maxBlankLines", "format", "max_blank_lines"],
+    ["format.indentStyle", "format", "indent_style"],
+    ["format.indentWidth", "format", "indent_width"],
+    ["format.braceStyle", "format", "brace_style"],
+    ["format.continuationIndent", "format", "continuation_indent"],
+    ["format.alignAssignments", "format", "align_assignments"],
+    ["format.reflowComments", "format", "reflow_comments"],
     ["diagnostics.ignore", "diagnostics", "ignore"],
     ["diagnostics.select", "diagnostics", "select"],
+    ["diagnostics.ignoreSymbols", "diagnostics", "ignore_symbols"],
   ];
   for (const [vsKey, section, tomlKey] of map) {
     const v = explicit(vsKey);
