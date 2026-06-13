@@ -64,19 +64,27 @@ binary. All features then work identically to the bundled builds.
 
 ## Settings
 
-| Setting                   | Default | Description                                                   |
-| ------------------------- | ------- | ------------------------------------------------------------- |
-| `m1.server.path`          | `""`    | Absolute path to the `m1-lsp` binary.                         |
-| `m1.project.path`         | `""`    | Absolute path to the `m1-project` binary (else bundled/PATH). |
-| `m1.trace.server`         | `off`   | Trace LSP traffic (`off`/`messages`/`verbose`).               |
-| `m1.lint.maxLineLength`   | `88`    | Lint: maximum line length (L001).                             |
-| `m1.lint.maxNestingDepth` | `4`     | Lint: maximum block nesting depth (L008).                     |
-| `m1.lint.maxComplexity`   | `10`    | Lint: maximum cyclomatic complexity (L009).                   |
-| `m1.lint.exclude`         | `[]`    | Lint: glob patterns of files to skip.                         |
-| `m1.format.lineWidth`     | `88`    | Formatter: wrap column.                                       |
-| `m1.format.maxBlankLines` | `2`     | Formatter: max consecutive blank lines.                       |
-| `m1.diagnostics.ignore`   | `[]`    | Disable diagnostics by code, any tool (lint `L*`, type `T*`). |
-| `m1.diagnostics.select`   | `[]`    | If non-empty, run ONLY these codes.                           |
+| Setting                          | Default    | Description                                                                                 |
+| -------------------------------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `m1.server.path`                 | `""`       | Absolute path to the `m1-lsp` binary.                                                       |
+| `m1.project.path`                | `""`       | Absolute path to the `m1-project` binary (else bundled/PATH).                               |
+| `m1.trace.server`                | `"off"`    | Trace LSP traffic (`off`/`messages`/`verbose`).                                             |
+| `m1.lint.maxLineLength`          | `88`       | Lint: maximum line length (L001).                                                           |
+| `m1.lint.maxNestingDepth`        | `4`        | Lint: maximum block nesting depth (L008).                                                   |
+| `m1.lint.maxComplexity`          | `10`       | Lint: maximum cyclomatic complexity (L009).                                                 |
+| `m1.lint.maxCognitiveComplexity` | `15`       | Lint: maximum cognitive complexity (L019).                                                  |
+| `m1.lint.exclude`                | `[]`       | Lint: glob patterns of files to skip.                                                       |
+| `m1.format.lineWidth`            | `88`       | Formatter: wrap column.                                                                     |
+| `m1.format.maxBlankLines`        | `2`        | Formatter: max consecutive blank lines.                                                     |
+| `m1.format.indentStyle`          | `"tab"`    | Formatter + lint L010: indentation style (the manual mandates tabs).                        |
+| `m1.format.indentWidth`          | `4`        | Formatter: spaces per indent level (used only when `indentStyle` is `"spaces"`).            |
+| `m1.format.braceStyle`           | `"allman"` | Formatter: opening-brace placement (the manual mandates Allman).                            |
+| `m1.format.continuationIndent`   | `1`        | Formatter: extra indent levels for wrapped continuation lines.                              |
+| `m1.format.alignAssignments`     | `false`    | Formatter: align the `=` of contiguous simple assignments (opt-in).                         |
+| `m1.format.reflowComments`       | `false`    | Formatter: split over-width `//` comment lines (opt-in).                                    |
+| `m1.diagnostics.ignore`          | `[]`       | Disable diagnostics by code, any tool (lint `L*`, type `T*`).                               |
+| `m1.diagnostics.select`          | `[]`       | If non-empty, run ONLY these codes.                                                         |
+| `m1.diagnostics.ignoreSymbols`   | `[]`       | Suppress a code for one symbol: `CODE:Symbol.Path` entries (e.g. `T050:Root.Engine.Speed`). |
 
 These VS Code settings are the convenient default. For **project-level**
 config shared with teammates (and with the Neovim plugins), commit an
@@ -113,7 +121,8 @@ Project editing (all backed by the bundled `m1-project` CLI; see Features):
 The same actions are available from the **M1 Project** tree's context menus.
 This list is guarded against rot: `node scripts/check-readme-commands.mjs`
 (run in CI alongside the contributes test) fails when a contributed command
-is missing here.
+is missing here. The Settings table above is guarded by the parallel
+`node scripts/check-readme-settings.mjs`.
 
 ## Develop
 
