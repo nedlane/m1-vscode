@@ -44,18 +44,37 @@ export function registerTaskProvider(
   context.subscriptions.push(
     vscode.tasks.registerTaskProvider("m1", {
       provideTasks(): vscode.Task[] {
-        const folder = vscode.workspace.workspaceFolders?.[0];
-        if (!folder) {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) {
           return [];
         }
-        return (["lint", "fmt"] as const)
-          .map((tool) => makeTask(context, folder, tool, output))
-          .filter((t): t is vscode.Task => t !== undefined);
+        const tasks: vscode.Task[] = [];
+        for (const folder of folders) {
+          for (const tool of ["lint", "fmt"] as const) {
+            const t = makeTask(context, folder, tool, output);
+            if (t) {
+              tasks.push(t);
+            }
+          }
+        }
+        return tasks;
       },
       resolveTask(task: vscode.Task): vscode.Task | undefined {
         const def = task.definition as M1TaskDefinition;
-        const folder = vscode.workspace.workspaceFolders?.[0];
-        if (!folder || (def.tool !== "lint" && def.tool !== "fmt")) {
+        if (def.tool !== "lint" && def.tool !== "fmt") {
+          return undefined;
+        }
+        // Use the task's own scope when it is a WorkspaceFolder (the common
+        // case for tasks loaded from tasks.json), otherwise fall back to the
+        // first workspace folder so single-root behaviour is unchanged.
+        // WorkspaceFolder is an interface (not a class) so we duck-type check
+        // for its `uri` property rather than using instanceof.
+        const scope = task.scope;
+        const folder: vscode.WorkspaceFolder | undefined =
+          scope !== undefined && typeof scope === "object" && "uri" in scope
+            ? (scope as vscode.WorkspaceFolder)
+            : vscode.workspace.workspaceFolders?.[0];
+        if (!folder) {
           return undefined;
         }
         return makeTask(context, folder, def.tool, output);
