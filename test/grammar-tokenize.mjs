@@ -50,6 +50,36 @@ function expectScope(grammar, line, substr, scopeFragment) {
   }
 }
 
+// Asserts the token covering `substr` (or its `occurrence`-th occurrence) does
+// NOT carry a scope containing `scopeFragment`. Used for the relational-vs-type
+// regression (#110): `<`/`>` comparisons must not be scoped as type annotations.
+function refuteScope(grammar, line, substr, scopeFragment, occurrence = 0) {
+  const r = grammar.tokenizeLine(line, vsctm.INITIAL);
+  let col = -1;
+  for (let i = 0; i <= occurrence; i++) {
+    col = line.indexOf(substr, col + 1);
+    if (col === -1) break;
+  }
+  const tok =
+    col === -1
+      ? undefined
+      : r.tokens.find((t) => col >= t.startIndex && col < t.endIndex);
+  const scopes = tok ? tok.scopes : [];
+  const bad = scopes.some((s) => s.includes(scopeFragment));
+  if (col !== -1 && !bad) {
+    console.log(`  PASS  "${substr}" !-> ${scopeFragment}`);
+    pass++;
+  } else if (col === -1) {
+    console.log(`  FAIL  "${substr}" not found in line`);
+    fail++;
+  } else {
+    console.log(
+      `  FAIL  "${substr}" must NOT be *${scopeFragment}*, got [${scopes.join(", ")}]`,
+    );
+    fail++;
+  }
+}
+
 const grammar = await registry.loadGrammar("source.m1scr");
 if (!grammar) {
   console.error("grammar failed to load");
@@ -105,6 +135,48 @@ expectScope(
 );
 expectScope(grammar, "x = a + b;", "+", "keyword.operator");
 expectScope(grammar, "foo(a);", "foo", "entity.name.function");
+
+// Regression (#110): relational `<`/`>` expressions must be operators, never a
+// `<…>` type-annotation span. A type annotation only follows `local`/`static
+// local`; a bare comparison has no such modifier.
+refuteScope(
+  grammar,
+  "if (Speed < Limit and Gear > Min Gear) { }",
+  "Limit and Gear",
+  "entity.name.type",
+);
+expectScope(
+  grammar,
+  "if (Speed < Limit and Gear > Min Gear) { }",
+  "<",
+  "keyword.operator",
+);
+expectScope(
+  grammar,
+  "if (Speed < Limit and Gear > Min Gear) { }",
+  ">",
+  "keyword.operator",
+);
+// Real corpus line: `<` after `local ... =` is a comparison, not an annotation.
+refuteScope(
+  grammar,
+  "local disengage = Temperature Out < (Threshold - Hysteresis);",
+  "<",
+  "typeannotation",
+);
+expectScope(
+  grammar,
+  "local disengage = Temperature Out < (Threshold - Hysteresis);",
+  "<",
+  "keyword.operator",
+);
+// The genuine annotation form still works (the `<` immediately follows `local`).
+expectScope(
+  grammar,
+  "static local <Integer> i = -1;",
+  "Integer",
+  "entity.name.type",
+);
 
 // M1 reference keywords (Development Manual): Root/This/Parent/In/Out/Library
 // behave like `self`/`this` in other languages — highlight them distinctly even
