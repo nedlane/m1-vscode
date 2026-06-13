@@ -472,8 +472,14 @@ export function validateProject(
       out = await runProject(context, ["validate", "--project", projectFile]);
     } catch (e) {
       // validate exits 1 on error-level findings; the report is still on stdout.
-      const stdout = (e as { stdout?: string }).stdout;
-      if (!stdout) {
+      // Guard: only recover stdout when the thrown value is an Error-like object
+      // that carries a stdout property — a bare cast would silently yield
+      // undefined for signals/timeouts and swallow the real error.
+      if (!(e instanceof Error) || !("stdout" in e)) {
+        throw e;
+      }
+      const stdout = (e as Error & { stdout: unknown }).stdout;
+      if (typeof stdout !== "string" || !stdout) {
         throw e;
       }
       out = stdout;
