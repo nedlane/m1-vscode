@@ -59,33 +59,37 @@ export async function activate(
   initLspClient(output, buildSettings);
   initProjectCommands(output);
 
+  // #73 / #75 / #77: status bar, task provider, project explorer — registered
+  // once on activation so they are present immediately without requiring the
+  // user to run "Restart Language Server" first.
+  registerStatusBar(context);
+  registerTaskProvider(context, (line) => output.appendLine(line));
+  registerProjectTree(context, {
+    setType: setChannelType,
+    setUnit: setChannelUnit,
+    setSecurity: setChannelSecurity,
+    createGroup,
+    createConstant,
+    createTable,
+    deleteComponent,
+    renameComponent,
+    setValidation,
+    setQuantity,
+    setFormat,
+    setDps,
+    setDisplayRange,
+    addTag,
+    removeTag,
+  });
+
   context.subscriptions.push(
     vscode.commands.registerCommand("m1.showOutput", () => output.show()),
     // Full stop+restart is reserved for this explicit command; project edits use
     // a lighter workspace/didChangeWatchedFiles reload (see project-commands.ts).
+    // The UI components (status bar, task provider, project explorer) are
+    // registered once at activation above and persist across server restarts.
     vscode.commands.registerCommand("m1.restartServer", async () => {
       await stopAllClients();
-      // #73 / #75 / #77: status bar, task provider, project explorer.
-      registerStatusBar(context);
-      registerTaskProvider(context, (line) => output.appendLine(line));
-      registerProjectTree(context, {
-        setType: setChannelType,
-        setUnit: setChannelUnit,
-        setSecurity: setChannelSecurity,
-        createGroup,
-        createConstant,
-        createTable,
-        deleteComponent,
-        renameComponent,
-        setValidation,
-        setQuantity,
-        setFormat,
-        setDps,
-        setDisplayRange,
-        addTag,
-        removeTag,
-      });
-
       await syncClients(context);
       refreshStatusBar();
     }),
