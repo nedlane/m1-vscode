@@ -45,7 +45,8 @@
       "match": "\\$\\([^)]*\\)"
     },
     "type-annotation": {
-      "match": "(<)\\s*([A-Za-z][A-Za-z0-9 ]*?)\\s*(>)",
+      "comment": "A type annotation only appears at a declaration site, immediately after the `local`/`static local` storage modifier (e.g. `local <Boolean> x = ...;`). Anchor on a preceding `local` so relational expressions like `if (Speed < Limit and Gear > Min Gear)` are scoped as operators, not as a bogus `<…>` type span.",
+      "match": "(?<=\\blocal\\s)\\s*(<)\\s*([A-Za-z][A-Za-z0-9 ]*?)\\s*(>)",
       "captures": {
         "1": { "name": "punctuation.definition.typeannotation.begin.m1scr" },
         "2": { "name": "entity.name.type.m1scr" },

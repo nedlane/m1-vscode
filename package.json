@@ -2,12 +2,12 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.91.0"
   },
   "categories": [
     "Programming Languages",
@@ -22,7 +22,7 @@
     "serverRepo": "C-Nucifora/m1-lsp",
     "serverVersion": "v0.38.0",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.6.0"
+    "projectVersion": "v0.7.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -585,7 +585,7 @@
         "m1.format.indentWidth": {
           "type": "integer",
           "default": 4,
-          "description": "Formatter: columns per indent level (spaces count, or assumed tab display width). A workspace m1-tools.toml [format] overrides this."
+          "description": "Formatter: number of spaces per indent level, used only when indentStyle is \"spaces\" (and for continuation-line alignment math). With the default tab indentation this has no rendering effect — tab display width is the editor's editor.tabSize, not a formatter setting. A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.braceStyle": {
           "type": "string",
@@ -774,7 +774,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.91.0",
     "@vscode/test-electron": "^3.0.0",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.1",
