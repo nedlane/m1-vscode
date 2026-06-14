@@ -13,6 +13,11 @@ import {
   syncClients,
 } from "./lsp-client";
 import {
+  affectsM1Settings,
+  pushSettingsToClients,
+  DID_CHANGE_CONFIGURATION,
+} from "./settings-sync";
+import {
   addTag,
   createChannel,
   createConstant,
@@ -46,9 +51,18 @@ const execFileAsync = promisify(execFile);
 
 let output: vscode.LogOutputChannel;
 
+/** The API `activate()` returns as `extension.exports` — a small seam the
+ * integration tests use to exercise the live-settings propagation (#120)
+ * without reaching into module internals. */
+export interface M1ExtensionApi {
+  affectsM1Settings: typeof affectsM1Settings;
+  pushSettingsToClients: typeof pushSettingsToClients;
+  didChangeConfigurationMethod: string;
+}
+
 export async function activate(
   context: vscode.ExtensionContext,
-): Promise<void> {
+): Promise<M1ExtensionApi> {
   // A log channel (not a plain one): vscode-languageclient ≥10 requires
   // LogOutputChannel for clientOptions.outputChannel.
   output = vscode.window.createOutputChannel("M1 Language Server", {
@@ -192,17 +206,8 @@ export async function activate(
     // Push edited m1.* settings to every running server live (the middle config
     // layer beneath a workspace m1-tools.toml).
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (
-        e.affectsConfiguration("m1.lint") ||
-        e.affectsConfiguration("m1.format") ||
-        e.affectsConfiguration("m1.diagnostics")
-      ) {
-        const settings = buildSettings();
-        for (const { client } of clients.values()) {
-          void client.sendNotification("workspace/didChangeConfiguration", {
-            settings,
-          });
-        }
+      if (affectsM1Settings(e)) {
+        pushSettingsToClients(clients.values(), buildSettings());
       }
     }),
     // Add/remove servers as project folders enter or leave the workspace.
@@ -212,6 +217,12 @@ export async function activate(
   );
 
   await syncClients(context);
+
+  return {
+    affectsM1Settings,
+    pushSettingsToClients,
+    didChangeConfigurationMethod: DID_CHANGE_CONFIGURATION,
+  };
 }
 
 export async function deactivate(): Promise<void> {
