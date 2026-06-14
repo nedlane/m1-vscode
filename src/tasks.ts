@@ -20,17 +20,20 @@ function makeTask(
     process.platform === "win32" ? `m1-${tool}.exe` : `m1-${tool}`;
   const bin = resolveBin(context, `${tool}.path`, binName, output) ?? binName;
   const def: M1TaskDefinition = { type: "m1", tool };
-  // Both tools accept file lists; let the shell expand the glob.
-  const command =
-    tool === "lint"
-      ? `find . -name '*.m1scr' -print0 | xargs -0 -r '${bin}'`
-      : `find . -name '*.m1scr' -print0 | xargs -0 -r '${bin}' --check`;
+  // Spawn the binary directly (no shell): both CLIs recurse over a directory
+  // argument (m1-lint `.`, m1-fmt `--check .`), so we hand them the workspace
+  // folder and skip `find … | xargs` entirely. That shell pipeline is
+  // POSIX-only and can never run on Windows (cmd.exe/PowerShell have no
+  // `xargs` and a different `find`); ProcessExecution is platform-agnostic and
+  // needs no quoting. cwd is the folder so the lint problem matcher's
+  // relative-to-${workspaceFolder} paths resolve correctly.
+  const args = tool === "lint" ? ["."] : ["--check", "."];
   const task = new vscode.Task(
     def,
     scope,
     tool === "lint" ? "lint" : "fmt check",
     "m1",
-    new vscode.ShellExecution(command),
+    new vscode.ProcessExecution(bin, args, { cwd: scope.uri.fsPath }),
     tool === "lint" ? ["$m1-lint"] : [],
   );
   task.group = tool === "lint" ? vscode.TaskGroup.Test : vscode.TaskGroup.Build;
