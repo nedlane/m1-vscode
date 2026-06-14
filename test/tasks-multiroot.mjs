@@ -48,6 +48,17 @@ class ShellExecution {
   }
 }
 
+// Platform-agnostic execution: spawns the binary directly (no shell), so the
+// task works on Windows (cmd.exe/PowerShell) as well as POSIX shells. The old
+// ShellExecution used `find … | xargs`, POSIX-only utilities absent on Windows.
+class ProcessExecution {
+  constructor(process, args, options) {
+    this.process = process;
+    this.args = args;
+    this.options = options;
+  }
+}
+
 const TaskGroup = {
   Test: "test",
   Build: "build",
@@ -66,6 +77,7 @@ const vscodeShim = {
   WorkspaceFolder,
   Task,
   ShellExecution,
+  ProcessExecution,
   TaskGroup,
   workspace,
 };
@@ -83,16 +95,16 @@ const vscodeShim = {
 
 function makeTask(scope, tool) {
   const def = { type: "m1", tool };
-  const command =
-    tool === "lint"
-      ? `find . -name '*.m1scr' -print0 | xargs -0 -r 'm1-lint'`
-      : `find . -name '*.m1scr' -print0 | xargs -0 -r 'm1-fmt' --check`;
+  const bin = `m1-${tool}`;
+  // Both CLIs recurse over directory arguments, so we hand them the workspace
+  // folder directly and spawn the binary with no shell.
+  const args = tool === "lint" ? ["."] : ["--check", "."];
   const task = new Task(
     def,
     scope,
     tool === "lint" ? "lint" : "fmt check",
     "m1",
-    new ShellExecution(command),
+    new ProcessExecution(bin, args, { cwd: scope.uri.fsPath }),
     tool === "lint" ? ["$m1-lint"] : [],
   );
   task.group = tool === "lint" ? TaskGroup.Test : TaskGroup.Build;
@@ -162,6 +174,52 @@ simulatedFolders = [folderA];
   check(
     names.join(",") === "fmt check,lint",
     `single-root → task names are lint and fmt check (got: ${names.join(",")})`,
+  );
+
+  // --- Cross-platform: execution is a shell-free ProcessExecution (#win) ---
+  // The old `find … | xargs` ShellExecution was POSIX-only and could never
+  // run on Windows (no `xargs`, different `find`). Assert we spawn the binary
+  // directly with a directory argument the CLIs recurse over.
+  for (const t of tasks) {
+    const exec = t.execution;
+    check(
+      exec instanceof ProcessExecution,
+      `${t.name} → uses ProcessExecution (shell-free, Windows-safe)`,
+    );
+    check(
+      !(exec instanceof ShellExecution),
+      `${t.name} → does NOT use ShellExecution (no POSIX shell string)`,
+    );
+    check(
+      Array.isArray(exec.args),
+      `${t.name} → args is an array (no shell quoting)`,
+    );
+    const joined = (exec.args ?? []).join(" ");
+    check(
+      !/find|xargs|-print0/.test(joined) &&
+        !/find|xargs|-print0/.test(String(exec.process)),
+      `${t.name} → no find/xargs/-print0 POSIX utilities (got: ${exec.process} ${joined})`,
+    );
+    check(
+      exec.args.includes("."),
+      `${t.name} → passes the directory '.' to the recursive CLI`,
+    );
+    check(
+      exec.options?.cwd === folderA.uri.fsPath,
+      `${t.name} → cwd is the workspace folder (relative problem-matcher paths)`,
+    );
+  }
+  const lintTask = tasks.find((t) => t.definition.tool === "lint");
+  const fmtTask = tasks.find((t) => t.definition.tool === "fmt");
+  check(
+    lintTask.execution.process === "m1-lint" &&
+      lintTask.execution.args.join(" ") === ".",
+    "lint → spawns m1-lint with ['.']",
+  );
+  check(
+    fmtTask.execution.process === "m1-fmt" &&
+      fmtTask.execution.args.join(" ") === "--check .",
+    "fmt → spawns m1-fmt with ['--check', '.']",
   );
 }
 
