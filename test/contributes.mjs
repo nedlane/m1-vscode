@@ -82,5 +82,19 @@ check(
   `configurationDefaults sets editor.defaultFormatter to "${formatterId}" for [m1scr]`,
 );
 
+// 5. configurationDefaults enables format-on-type for [m1scr]. m1-lsp
+// advertises documentOnTypeFormattingProvider with trigger character "}"
+// (backend.rs: DocumentOnTypeFormattingOptions { first_trigger_character: "}" }),
+// built to re-indent the just-closed block to the manual's tab + Allman layout
+// the instant the user types "}". vscode-languageclient registers the provider
+// when that capability is present, but VS Code only invokes it when
+// editor.formatOnType is true (which defaults to false). Turning it on here —
+// language-scoped so it does not touch the user's other files — makes that built
+// server feature live by default instead of dormant.
+check(
+  cfg?.["editor.formatOnType"] === true,
+  "configurationDefaults enables editor.formatOnType for [m1scr]",
+);
+
 console.log(`\ncontributes: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

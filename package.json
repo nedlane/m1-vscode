@@ -97,7 +97,8 @@
     "configurationDefaults": {
       "[m1scr]": {
         "editor.semanticHighlighting.enabled": true,
-        "editor.defaultFormatter": "m1-tooling.m1-vscode"
+        "editor.defaultFormatter": "m1-tooling.m1-vscode",
+        "editor.formatOnType": true
       }
     },
     "commands": [
