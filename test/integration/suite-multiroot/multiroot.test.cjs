@@ -72,4 +72,62 @@ suite("m1-vscode multi-root workspace", () => {
     assert.match(text, /beta/, "hover should mention the B-project local");
     assert.match(text, /Integer/, "B's server should infer the local's type");
   });
+
+  // Regression for the scoped-selector root-anchor bug (#20): each per-root
+  // server must claim only the .m1scr files under its own root. That requires an
+  // anchored relative pattern ({ baseUri, pattern }) in the document filter;
+  // handing the bare `**/*.m1scr` glob string strips the anchor, so every server
+  // claims every .m1scr (duplicate diagnostics/hover, ambiguous
+  // go-to-def/rename). The hover tests above still pass with the over-broad
+  // selector, so assert the selector shape directly — deterministic, no
+  // dependence on result-merging.
+  test("each scoped client is anchored to its own root", async function () {
+    this.timeout(60000);
+    const ext = vscode.extensions.getExtension(EXT_ID);
+    assert.ok(ext, `extension ${EXT_ID} should be present`);
+    const api = ext.exports;
+    assert.ok(
+      api && typeof api.scopedClientInfo === "function",
+      "extension API should expose scopedClientInfo()",
+    );
+
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const expectedRoots = folders.map((f) => f.uri.fsPath).sort();
+
+    // The scoped clients are started asynchronously during/after activation;
+    // wait until one exists per project root.
+    const info = await retry(async () => {
+      const snap = api.scopedClientInfo();
+      return snap.length === expectedRoots.length ? snap : undefined;
+    });
+    assert.ok(
+      info,
+      `expected ${expectedRoots.length} scoped clients, one per root`,
+    );
+
+    assert.strictEqual(
+      info.length,
+      expectedRoots.length,
+      "one scoped client per project root",
+    );
+
+    const actualRoots = info.map((c) => c.root).sort();
+    assert.deepStrictEqual(
+      actualRoots,
+      expectedRoots,
+      "scoped clients should cover exactly the workspace project roots",
+    );
+
+    for (const c of info) {
+      assert.ok(
+        c.patternIsRelative,
+        `client for ${c.root} must use a RelativePattern (anchored), not a bare glob string`,
+      );
+      assert.strictEqual(
+        c.patternBase,
+        c.root,
+        `client for ${c.root} must be anchored to its own root (baseUri == root)`,
+      );
+    }
+  });
 });
