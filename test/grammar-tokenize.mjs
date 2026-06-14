@@ -136,6 +136,40 @@ expectScope(
 expectScope(grammar, "x = a + b;", "+", "keyword.operator");
 expectScope(grammar, "foo(a);", "foo", "entity.name.function");
 
+// Bitwise NOT and the full compound-assignment table (Development Manual,
+// Operators -> Integer Bitwise / Compound Assignment; grammar support landed in
+// tree-sitter-m1 v0.4.0). The TextMate baseline must scope `~` as an operator
+// and match each extended compound assignment as ONE token, not two.
+expectScope(grammar, "x = ~a;", "~", "keyword.operator");
+expectScope(grammar, "a %= b;", "%=", "keyword.operator");
+expectScope(grammar, "a &= b;", "&=", "keyword.operator");
+expectScope(grammar, "a |= b;", "|=", "keyword.operator");
+expectScope(grammar, "a ^= b;", "^=", "keyword.operator");
+expectScope(grammar, "a <<= b;", "<<=", "keyword.operator");
+expectScope(grammar, "a >>= b;", ">>=", "keyword.operator");
+// Each compound assignment must be a single token (e.g. `%=`, not `%` then `=`).
+for (const [line, op] of [
+  ["a %= b;", "%="],
+  ["a &= b;", "&="],
+  ["a |= b;", "|="],
+  ["a ^= b;", "^="],
+  ["a <<= b;", "<<="],
+  ["a >>= b;", ">>="],
+]) {
+  const r = grammar.tokenizeLine(line, vsctm.INITIAL);
+  const col = line.indexOf(op);
+  const tok = r.tokens.find((t) => col >= t.startIndex && col < t.endIndex);
+  if (tok && tok.startIndex === col && tok.endIndex === col + op.length) {
+    console.log(`  PASS  "${op}" is a single token`);
+    pass++;
+  } else {
+    console.log(
+      `  FAIL  "${op}" expected one token [${col}..${col + op.length}), got [${tok ? tok.startIndex : "?"}..${tok ? tok.endIndex : "?"})`,
+    );
+    fail++;
+  }
+}
+
 // Regression (#110): relational `<`/`>` expressions must be operators, never a
 // `<…>` type-annotation span. A type annotation only follows `local`/`static
 // local`; a bare comparison has no such modifier.
