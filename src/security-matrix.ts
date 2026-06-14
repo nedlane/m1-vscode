@@ -3,9 +3,7 @@
 // per-script 🔒 code-lens badge the language server emits (m1-lsp#172).
 import * as vscode from "vscode";
 
-import { listComponents } from "./project-commands";
-
-const LEVELS = ["Tune", "Calibration", "Master Calibration", "Resource"];
+import { listComponents, securityLevels } from "./project-commands";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -23,6 +21,8 @@ export async function showSecurityMatrix(
   if (!result) {
     return;
   }
+  // Columns are the project's declared security groups (built-ins as fallback).
+  const LEVELS = await securityLevels(context);
   const secured = result.components.filter((c) => c.security);
   const panel = vscode.window.createWebviewPanel(
     "m1SecurityMatrix",
@@ -54,7 +54,7 @@ export async function showSecurityMatrix(
     for (const c of comps.sort((a, b) => a.path.localeCompare(b.path))) {
       const cells = LEVELS.map((l) =>
         c.security === l
-          ? `<td class="hit" style="background:${colors[l]}">●</td>`
+          ? `<td class="hit" style="background:${colors[l] ?? "#555"}">●</td>`
           : "<td></td>",
       ).join("");
       rows += `<tr><td class="path">${esc(c.path)}</td>${cells}</tr>`;

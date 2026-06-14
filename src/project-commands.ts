@@ -156,7 +156,7 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
       return undefined;
     }
     const security = await vscode.window.showQuickPick(
-      ["(none)", "Tune", "Calibration", "Master Calibration", "Resource"],
+      ["(none)", ...(await securityLevels(context))],
       { title: "Security level (optional)" },
     );
     if (security === undefined) {
@@ -183,6 +183,45 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
   });
 }
 
+/** The M1 built-in security groups — the fallback when a project can't be queried. */
+const DEFAULT_SECURITY = [
+  "Tune",
+  "Calibration",
+  "Master Calibration",
+  "Resource",
+];
+
+/**
+ * The active project's declared security groups, via `m1-project list-security`
+ * (parity with nvim-m1). Falls back to the built-in groups when the project
+ * can't be queried — no project open, m1-project missing, or a bundled binary
+ * that predates the verb — so the pickers and the security matrix keep working.
+ */
+export async function securityLevels(
+  context: vscode.ExtensionContext,
+): Promise<string[]> {
+  try {
+    const projectFile = await activeProjectFile();
+    if (projectFile) {
+      const out = await runProject(context, [
+        "list-security",
+        "--project",
+        projectFile,
+      ]);
+      const groups = out
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (groups.length) {
+        return groups;
+      }
+    }
+  } catch {
+    // fall through to the built-ins
+  }
+  return DEFAULT_SECURITY;
+}
+
 export function setChannelSecurity(
   context: vscode.ExtensionContext,
   preselected?: string,
@@ -196,7 +235,7 @@ export function setChannelSecurity(
       return undefined;
     }
     const security = await vscode.window.showQuickPick(
-      ["Tune", "Calibration", "Master Calibration", "Resource"],
+      await securityLevels(context),
       { title: "Security level" },
     );
     if (!security) {
@@ -818,7 +857,7 @@ export function createParameter(
       return undefined;
     }
     const security = await vscode.window.showQuickPick(
-      ["(none)", "Tune", "Calibration", "Master Calibration", "Resource"],
+      ["(none)", ...(await securityLevels(context))],
       { title: "Security level (optional)" },
     );
     if (security === undefined) {
@@ -1050,7 +1089,7 @@ export function createTable(
       }
     }
     const security = await vscode.window.showQuickPick(
-      ["(none)", "Tune", "Calibration", "Master Calibration", "Resource"],
+      ["(none)", ...(await securityLevels(context))],
       { title: "Security level (optional)" },
     );
     if (security === undefined) {
