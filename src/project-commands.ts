@@ -522,6 +522,26 @@ export interface ComponentEntry {
 }
 
 /**
+ * Run `m1-project list-components --json` against an explicit `projectFile` and
+ * parse the payload into typed `ComponentEntry[]`. The single source of truth
+ * for the list-components CLI invocation and parse — both the active-project
+ * `listComponents()` and the axis-source `pickChannel()` go through here so the
+ * argv and parse cannot drift apart.
+ */
+async function listComponentsFor(
+  context: vscode.ExtensionContext,
+  projectFile: string,
+): Promise<ComponentEntry[]> {
+  const out = await runProject(context, [
+    "list-components",
+    "--project",
+    projectFile,
+    "--json",
+  ]);
+  return JSON.parse(out) as ComponentEntry[];
+}
+
+/**
  * The project's component tree via `m1-project list-components --json` —
  * the shared data source for the Project Explorer tree (#77) and the
  * security-matrix webview (#78). Works without a running language server.
@@ -533,13 +553,10 @@ export async function listComponents(
   if (!projectFile || !fs.existsSync(projectFile)) {
     return undefined;
   }
-  const out = await runProject(context, [
-    "list-components",
-    "--project",
+  return {
     projectFile,
-    "--json",
-  ]);
-  return { projectFile, components: JSON.parse(out) as ComponentEntry[] };
+    components: await listComponentsFor(context, projectFile),
+  };
 }
 
 /** Shared shape of the simple `set-<x> --component --<flag> <value>` verbs. */
@@ -869,16 +886,7 @@ async function pickChannel(
 ): Promise<string | undefined> {
   let paths: string[] = [];
   try {
-    const json = await runProject(context, [
-      "list-components",
-      "--json",
-      "--project",
-      projectFile,
-    ]);
-    const entries = JSON.parse(json) as {
-      path: string;
-      classname: string;
-    }[];
+    const entries = await listComponentsFor(context, projectFile);
     paths = entries
       .filter((e) => e.classname === "BuiltIn.Channel")
       .map((e) => e.path);
