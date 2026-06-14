@@ -30,6 +30,8 @@ other uncovered platforms: see below.)
 - **Language features** — diagnostics (syntax, lint, type), hover,
   completion, go-to-definition and -implementation, references, rename,
   document symbols, formatting, inlay hints, code actions, call hierarchy.
+  The extension pins itself as the default formatter for `.m1scr`, so
+  **Format Document** and `editor.formatOnSave` work with no setup.
 - **Multi-root workspaces** — one server per M1 project root, each scoped to
   its own folder.
 - **M1 Project explorer** — a tree view of the project's component hierarchy
