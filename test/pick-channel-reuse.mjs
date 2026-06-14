@@ -152,6 +152,15 @@ const vscodeShim = {
     getConfiguration: () => ({ get: () => undefined }),
     findFiles: () => Promise.resolve([]),
   },
+  languages: {
+    createDiagnosticCollection: (name) => ({
+      name,
+      set() {},
+      delete() {},
+      clear() {},
+      dispose() {},
+    }),
+  },
   Uri: {
     file: (p) => ({ fsPath: p, scheme: "file" }),
   },
@@ -206,7 +215,7 @@ const context = {
 };
 
 // project-commands wires its output channel via initProjectCommands.
-mod.initProjectCommands(vscodeShim.window.createOutputChannel());
+mod.initProjectCommands(vscodeShim.window.createOutputChannel(), context);
 
 // ---------------------------------------------------------------------------
 // Tests

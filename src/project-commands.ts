@@ -17,9 +17,20 @@ const PROJECT_BIN =
 
 let output: vscode.OutputChannel;
 
-/** Wire the project commands to the extension's shared output channel. */
-export function initProjectCommands(sharedOutput: vscode.OutputChannel): void {
+/** Wire the project commands to the extension's shared output channel, and
+ * register the `m1-project` validate DiagnosticCollection on the extension's
+ * lifecycle. Creating it eagerly here (rather than lazily on first validate)
+ * binds its lifetime to `context.subscriptions`, so deactivate disposes it and
+ * it cannot leak across an extension-host reload. */
+export function initProjectCommands(
+  sharedOutput: vscode.OutputChannel,
+  context: vscode.ExtensionContext,
+): void {
   output = sharedOutput;
+  context.subscriptions.push(
+    (validateDiagnostics =
+      vscode.languages.createDiagnosticCollection("m1-project")),
+  );
 }
 
 /**
@@ -456,7 +467,9 @@ export function renameComponent(
   });
 }
 
-/** Findings from `m1-project validate`, rendered into the Problems panel. */
+/** Findings from `m1-project validate`, rendered into the Problems panel.
+ * Created and registered for disposal in `initProjectCommands` so its lifetime
+ * is owned by the extension (no leak on deactivate / extension-host reload). */
 let validateDiagnostics: vscode.DiagnosticCollection | undefined;
 
 /** `m1.validateProject` (#81): run the structural validation and load findings
@@ -465,8 +478,6 @@ export function validateProject(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   return withProjectFile("Validate project", async (projectFile) => {
-    validateDiagnostics ??=
-      vscode.languages.createDiagnosticCollection("m1-project");
     let out: string;
     try {
       out = await runProject(context, ["validate", "--project", projectFile]);
@@ -501,7 +512,10 @@ export function validateProject(
       d.source = "m1-project";
       findings.push(d);
     }
-    validateDiagnostics.set(uri, findings);
+    // Always set on the extension-owned collection created in
+    // initProjectCommands; the `?.` only guards the (unreachable in practice)
+    // case of validate running before activation wired it up.
+    validateDiagnostics?.set(uri, findings);
     const summary = out.trim().split("\n").pop() ?? "done";
     if (findings.length > 0) {
       void vscode.window.showWarningMessage(`Project validation: ${summary}`);
