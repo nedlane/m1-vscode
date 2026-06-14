@@ -40,6 +40,38 @@ suite("m1-vscode in a real VS Code Extension Host", () => {
     assert.strictEqual(doc.languageId, "m1scr");
   });
 
+  // M1 channels routinely contain spaces (e.g. `Rear Left Torque`). The
+  // contributed wordPattern (language-configuration.json) must make VS Code
+  // treat the whole multi-word name as one word, so double-click selection and
+  // Ctrl+Left/Right word motions don't stop mid-name. getWordRangeAtPosition is
+  // exactly the engine path both of those use, applied through the real,
+  // VS Code-compiled wordPattern (not a JS approximation).
+  test("wordPattern selects a full space-containing channel name", async () => {
+    const md = await vscode.workspace.openTextDocument({
+      language: "m1scr",
+      content: "Rear Left Torque = Driver Throttle * 100.0;\n",
+    });
+    const wordOf = (col) => {
+      const r = md.getWordRangeAtPosition(new vscode.Position(0, col));
+      return r ? md.getText(r) : undefined;
+    };
+    // Cursor on each of the three sub-words selects the whole channel.
+    for (const probe of ["Rear", "Left", "Torque"]) {
+      const col = md.getText().indexOf(probe);
+      assert.strictEqual(
+        wordOf(col),
+        "Rear Left Torque",
+        `cursor on "${probe}" should select the whole channel "Rear Left Torque"`,
+      );
+    }
+    // The right-hand channel selects on its own (not across the `=`).
+    assert.strictEqual(
+      wordOf(md.getText().indexOf("Throttle")),
+      "Driver Throttle",
+      'cursor on "Throttle" should select "Driver Throttle"',
+    );
+  });
+
   // #175: the clickable execution-rate code lens fires the client-registered
   // `m1.revealLocation` command (NOT a server executeCommandProvider command),
   // so it must be present in the command registry.
