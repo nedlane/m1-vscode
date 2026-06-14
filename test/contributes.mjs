@@ -71,5 +71,16 @@ check(
   "configurationDefaults enables semantic highlighting for [m1scr]",
 );
 
+// 4. configurationDefaults pins this extension as the default formatter for
+// [m1scr]. The extension supplies document formatting through m1-lsp, so
+// "Format Document" / format-on-save must work with zero configuration rather
+// than popping the "Select a default formatter" picker. The id is derived from
+// publisher.name so it stays in sync if either ever changes.
+const formatterId = `${pkg.publisher}.${pkg.name}`;
+check(
+  cfg?.["editor.defaultFormatter"] === formatterId,
+  `configurationDefaults sets editor.defaultFormatter to "${formatterId}" for [m1scr]`,
+);
+
 console.log(`\ncontributes: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
