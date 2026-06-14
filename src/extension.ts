@@ -95,7 +95,7 @@ export async function activate(
   context.subscriptions.push(output);
 
   initLspClient(output, buildSettings);
-  initProjectCommands(output);
+  initProjectCommands(output, context);
 
   // #73 / #75 / #77: status bar, task provider, project explorer — registered
   // once on activation so they are present immediately without requiring the
