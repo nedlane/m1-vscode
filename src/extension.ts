@@ -51,13 +51,37 @@ const execFileAsync = promisify(execFile);
 
 let output: vscode.LogOutputChannel;
 
+/**
+ * A scoped client's root plus the shape of its document-selector anchor, used
+ * by the multi-root integration test to assert each per-root server is anchored
+ * to its own root (a relative pattern whose baseUri == root) rather than
+ * over-claiming every `.m1scr` via a bare glob string.
+ */
+export interface ScopedClientInfo {
+  /** The project root this client is scoped to. */
+  root: string;
+  /**
+   * The document-selector entry's `pattern` is an anchored relative pattern
+   * (`{ baseUri, pattern }`). `false` means it was a bare glob string, which
+   * silently over-claims the whole workspace.
+   */
+  patternIsRelative: boolean;
+  /**
+   * The `fsPath` of the anchoring relative pattern's `baseUri`, when present.
+   * Compared against the client's own root to confirm the anchor is correct.
+   */
+  patternBase: string | undefined;
+}
+
 /** The API `activate()` returns as `extension.exports` — a small seam the
- * integration tests use to exercise the live-settings propagation (#120)
- * without reaching into module internals. */
+ * integration tests use to exercise the live-settings propagation (#120) and
+ * scoped-client anchoring (#20) without reaching into module internals. */
 export interface M1ExtensionApi {
   affectsM1Settings: typeof affectsM1Settings;
   pushSettingsToClients: typeof pushSettingsToClients;
   didChangeConfigurationMethod: string;
+  /** Snapshot the running scoped (multi-root) clients' selector anchoring. */
+  scopedClientInfo(): ScopedClientInfo[];
 }
 
 export async function activate(
@@ -222,6 +246,30 @@ export async function activate(
     affectsM1Settings,
     pushSettingsToClients,
     didChangeConfigurationMethod: DID_CHANGE_CONFIGURATION,
+    scopedClientInfo: () =>
+      [...clients.values()]
+        .filter((c) => c.root !== undefined)
+        .map((c) => {
+          const filter = c.documentSelector[0];
+          const pattern =
+            filter && typeof filter === "object" && "pattern" in filter
+              ? (filter as { pattern?: unknown }).pattern
+              : undefined;
+          // The anchored form is the LSP relative pattern { baseUri, pattern };
+          // a bare glob string is not anchored and over-claims the workspace.
+          const isRelative =
+            typeof pattern === "object" &&
+            pattern !== null &&
+            typeof (pattern as { baseUri?: unknown }).baseUri === "string";
+          return {
+            root: c.root as string,
+            patternIsRelative: isRelative,
+            patternBase: isRelative
+              ? vscode.Uri.parse((pattern as { baseUri: string }).baseUri)
+                  .fsPath
+              : undefined,
+          };
+        }),
   };
 }
 

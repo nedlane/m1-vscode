@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
+  DocumentSelector,
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
@@ -20,12 +21,55 @@ export interface ManagedClient {
   /** The project root this client is rooted at, or undefined in project-less mode. */
   root: string | undefined;
   /**
+   * The document selector this client was started with. Retained so tests (and
+   * diagnostics) can verify a *scoped* client really is anchored to its root —
+   * a bare-glob selector silently over-claims every `.m1scr` in the workspace.
+   */
+  documentSelector: DocumentSelector;
+  /**
    * The file-system watchers handed to the client via `synchronize.fileEvents`.
    * vscode-languageclient hooks listeners onto these (registerRaw) but never
    * disposes the watchers themselves, so we own them and dispose them when this
    * client is torn down — otherwise every restart/re-sync leaks them.
    */
   watchers: vscode.Disposable[];
+}
+
+/**
+ * Build the document selector for a client.
+ *
+ * A *scoped* client (multi-root, #20) must claim only the `.m1scr` files under
+ * its own `rootUri`. That requires an **anchored relative pattern** — the LSP
+ * `{ baseUri, pattern }` form — NOT a bare `**​/*.m1scr` glob string. A
+ * plain-string pattern is matched against the document's *absolute* path with
+ * no workspace-folder anchoring, so every per-root server would claim every
+ * `.m1scr` in the workspace — duplicate diagnostics/hover/completion and
+ * ambiguous go-to-definition/rename. vscode-languageclient turns the
+ * `{ baseUri, pattern }` filter back into a real `vscode.RelativePattern`
+ * (anchored to `baseUri`) when it registers the providers.
+ *
+ * The single / project-less client claims every `.m1scr` (including files
+ * outside any root and untitled buffers).
+ */
+export function buildDocumentSelector(
+  rootUri: vscode.Uri | undefined,
+  scoped: boolean,
+): DocumentSelector {
+  if (scoped && rootUri) {
+    return [
+      {
+        scheme: "file",
+        language: "m1scr",
+        // The LSP relative-pattern form: an anchored { baseUri, pattern }, not
+        // a bare glob string — see the doc comment above.
+        pattern: { baseUri: rootUri.toString(), pattern: "**/*.m1scr" },
+      },
+    ];
+  }
+  return [
+    { scheme: "file", language: "m1scr" },
+    { scheme: "untitled", language: "m1scr" },
+  ];
 }
 
 // Each project root gets its own client + server, keyed by the root's fsPath.
@@ -190,19 +234,7 @@ async function startClient(
   const rootUri = root ? vscode.Uri.file(root) : undefined;
   // A scoped client only claims documents under its root; the single client
   // claims every .m1scr (incl. project-less files outside any root).
-  const documentSelector =
-    scoped && rootUri
-      ? [
-          {
-            scheme: "file",
-            language: "m1scr",
-            pattern: new vscode.RelativePattern(rootUri, "**/*.m1scr").pattern,
-          },
-        ]
-      : [
-          { scheme: "file", language: "m1scr" },
-          { scheme: "untitled", language: "m1scr" },
-        ];
+  const documentSelector = buildDocumentSelector(rootUri, scoped);
 
   // Watch the script sources plus every file the server's project model is
   // built from, so it is told (via workspace/didChangeWatchedFiles) when any
@@ -245,7 +277,13 @@ async function startClient(
     serverOptions,
     clientOptions,
   );
-  clients.set(key, { client, output: chan, root, watchers: fileEvents });
+  clients.set(key, {
+    client,
+    output: chan,
+    root,
+    documentSelector,
+    watchers: fileEvents,
+  });
 
   // Detect an unexpected server exit (a crash) and offer to restart just this one.
   client.onDidChangeState((event) => {
