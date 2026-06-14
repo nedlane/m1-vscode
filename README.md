@@ -31,7 +31,9 @@ other uncovered platforms: see below.)
   completion, go-to-definition and -implementation, references, rename,
   document symbols, formatting, inlay hints, code actions, call hierarchy.
   The extension pins itself as the default formatter for `.m1scr`, so
-  **Format Document** and `editor.formatOnSave` work with no setup.
+  **Format Document**, `editor.formatOnSave` and on-type re-indentation
+  (typing `}` snaps the block to the manual's tab + Allman layout) all work
+  with no setup.
 - **Multi-root workspaces** — one server per M1 project root, each scoped to
   its own folder.
 - **M1 Project explorer** — a tree view of the project's component hierarchy
