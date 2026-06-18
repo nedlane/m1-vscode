@@ -141,10 +141,10 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
     if (!name) {
       return undefined;
     }
-    const type = await vscode.window.showQuickPick(
-      ["(none)", "f32", "f64", "u8", "u16", "u32", "s8", "s16", "s32", "bool"],
-      { title: "Storage type", placeHolder: "Channel storage type (optional)" },
-    );
+    const type = await vscode.window.showQuickPick(STORAGE_TYPES_OPTIONAL, {
+      title: "Storage type",
+      placeHolder: "Channel storage type (optional)",
+    });
     if (type === undefined) {
       return undefined;
     }
@@ -333,6 +333,14 @@ const STORAGE_TYPES = [
   "s32",
   "bool",
 ];
+
+/**
+ * Storage-type picker options for the channel/parameter *creators*, where a
+ * leading "(none)" sentinel means "leave the storage type unset". Derived from
+ * STORAGE_TYPES so the single source of truth stays single — adding/removing an
+ * M1 storage type only touches STORAGE_TYPES above.
+ */
+const STORAGE_TYPES_OPTIONAL = ["(none)", ...STORAGE_TYPES];
 
 /** `m1.setChannelType` (#72): set a component's storage type via m1-project. */
 export function setChannelType(
@@ -839,13 +847,10 @@ export function createParameter(
     if (!name) {
       return undefined;
     }
-    const type = await vscode.window.showQuickPick(
-      ["(none)", "f32", "f64", "u8", "u16", "u32", "s8", "s16", "s32", "bool"],
-      {
-        title: "Storage type",
-        placeHolder: "Parameter storage type (optional)",
-      },
-    );
+    const type = await vscode.window.showQuickPick(STORAGE_TYPES_OPTIONAL, {
+      title: "Storage type",
+      placeHolder: "Parameter storage type (optional)",
+    });
     if (type === undefined) {
       return undefined;
     }
