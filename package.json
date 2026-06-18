@@ -756,7 +756,7 @@
     "server:fetch": "node scripts/fetch-server.mjs",
     "project:fetch": "node scripts/fetch-project.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
-    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/validate-diagnostics-dispose.mjs && node test/lsp-smoke.mjs",
+    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/storage-types-single-source.mjs && node test/validate-diagnostics-dispose.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
     "test:contributes": "node test/contributes.mjs",
     "test:scaffold": "node test/scaffold.mjs",
