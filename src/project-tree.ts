@@ -135,119 +135,43 @@ export function registerProjectTree(
   },
 ): void {
   const provider = new ProjectTreeProvider(context);
+
+  // The node-action context-menu commands are all the identical shape:
+  // run a commands.* verb with the node's path pre-selected, then refresh the
+  // tree. Table-drive them so a new action is one row, not a copy-pasted
+  // wrapper (which risks a wrong-function or missing-refresh slip).
+  //   #92 set* verbs · #81 createGroup/rename/delete · #98 createConstant/Table
+  const treeActions: ReadonlyArray<
+    [string, (c: vscode.ExtensionContext, sel?: string) => Promise<void>]
+  > = [
+    ["m1.projectTree.setType", commands.setType],
+    ["m1.projectTree.setUnit", commands.setUnit],
+    ["m1.projectTree.setValidation", commands.setValidation],
+    ["m1.projectTree.setQuantity", commands.setQuantity],
+    ["m1.projectTree.setFormat", commands.setFormat],
+    ["m1.projectTree.setDps", commands.setDps],
+    ["m1.projectTree.setDisplayRange", commands.setDisplayRange],
+    ["m1.projectTree.addTag", commands.addTag],
+    ["m1.projectTree.removeTag", commands.removeTag],
+    ["m1.projectTree.setSecurity", commands.setSecurity],
+    ["m1.projectTree.createGroup", commands.createGroup],
+    ["m1.projectTree.createConstant", commands.createConstant],
+    ["m1.projectTree.createTable", commands.createTable],
+    ["m1.projectTree.rename", commands.renameComponent],
+    ["m1.projectTree.delete", commands.deleteComponent],
+  ];
+
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider("m1ProjectExplorer", provider),
+    // refresh has no node arg and a different body, so keep it explicit.
     vscode.commands.registerCommand("m1.projectTree.refresh", () =>
       provider.refresh(),
     ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setType",
-      async (node: ComponentNode) => {
-        await commands.setType(context, node?.path);
+    ...treeActions.map(([id, fn]) =>
+      vscode.commands.registerCommand(id, async (node: ComponentNode) => {
+        await fn(context, node?.path);
         provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setUnit",
-      async (node: ComponentNode) => {
-        await commands.setUnit(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    // #92: the remaining m1-project v0.4.0 verbs on tree nodes.
-    vscode.commands.registerCommand(
-      "m1.projectTree.setValidation",
-      async (node: ComponentNode) => {
-        await commands.setValidation(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setQuantity",
-      async (node: ComponentNode) => {
-        await commands.setQuantity(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setFormat",
-      async (node: ComponentNode) => {
-        await commands.setFormat(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setDps",
-      async (node: ComponentNode) => {
-        await commands.setDps(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setDisplayRange",
-      async (node: ComponentNode) => {
-        await commands.setDisplayRange(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.addTag",
-      async (node: ComponentNode) => {
-        await commands.addTag(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.removeTag",
-      async (node: ComponentNode) => {
-        await commands.removeTag(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.setSecurity",
-      async (node: ComponentNode) => {
-        await commands.setSecurity(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    // #81: structural actions — Create Group on groups, Rename/Delete on
-    // every component node.
-    vscode.commands.registerCommand(
-      "m1.projectTree.createGroup",
-      async (node: ComponentNode) => {
-        await commands.createGroup(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    // #98: the m1-project v0.6.0 create verbs on group nodes.
-    vscode.commands.registerCommand(
-      "m1.projectTree.createConstant",
-      async (node: ComponentNode) => {
-        await commands.createConstant(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.createTable",
-      async (node: ComponentNode) => {
-        await commands.createTable(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.rename",
-      async (node: ComponentNode) => {
-        await commands.renameComponent(context, node?.path);
-        provider.refresh();
-      },
-    ),
-    vscode.commands.registerCommand(
-      "m1.projectTree.delete",
-      async (node: ComponentNode) => {
-        await commands.deleteComponent(context, node?.path);
-        provider.refresh();
-      },
+      }),
     ),
   );
 }
