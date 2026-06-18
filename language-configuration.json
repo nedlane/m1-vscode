@@ -3,7 +3,7 @@
     "lineComment": "//",
     "blockComment": ["/*", "*/"]
   },
-  "wordPattern": "(?:and|or|not|xor|mod)\\b|[A-Za-z_][A-Za-z0-9_]*(?: (?!(?:and|or|not|xor|mod)\\b)[A-Za-z0-9_]+)*|[0-9]+(?:\\.[0-9]+)?",
+  "wordPattern": "(?:and|or|not|eq|neq)\\b|[A-Za-z_][A-Za-z0-9_]*(?: (?!(?:and|or|not|eq|neq)\\b)[A-Za-z0-9_]+)*|[0-9]+(?:\\.[0-9]+)?",
   "brackets": [
     ["{", "}"],
     ["(", ")"],

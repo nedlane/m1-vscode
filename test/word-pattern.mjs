@@ -12,8 +12,9 @@
 // configured wordPattern (as a global regex) and returns the match whose range
 // contains the cursor. We assert that landing the cursor anywhere inside a
 // multi-word channel selects the whole name, while operators and the M1 word
-// operators (and/or/not/xor/mod) still split expressions correctly so the
-// pattern is not greedy across `if (Speed < Limit and Gear > Min Gear)`.
+// operators (and/or/not/eq/neq — Development Manual, Operators) still split
+// expressions correctly so the pattern is not greedy across
+// `if (Speed < Limit and Gear > Min Gear)`.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -103,7 +104,7 @@ if (wp) {
     'right operand "Maximum Allowable Cell Temp" selects on its own',
   );
 
-  // Not greedy across the M1 word operators (and/or/not/xor/mod): they must not
+  // Not greedy across the M1 word operators (and/or/not/eq/neq): they must not
   // be absorbed into an adjacent channel name.
   const line4 = "if (Speed < Limit and Gear > Min Gear)";
   check(
@@ -120,6 +121,20 @@ if (wp) {
   check(
     wordAt(line5, 0) === "android State",
     '"android State" stays one word (word-boundary guards the operator)',
+  );
+
+  // The guard list is the actual M1 word-operator set (and/or/not/eq/neq), so
+  // `eq`/`neq` split operands and are NOT absorbed into an adjacent channel —
+  // this keeps word selection aligned with the TextMate grammar's
+  // #word-operators rule. (`Channel A eq Channel B` per the Development Manual.)
+  const line6 = "if (Channel A eq Channel B) { }";
+  check(
+    wordAt(line6, line6.indexOf("Channel A")) === "Channel A",
+    '"Channel A" selects alone, not "Channel A eq Channel B"',
+  );
+  check(
+    wordAt(line6, line6.indexOf("eq")) === "eq",
+    '"eq" selects as the word operator, not as part of a channel',
   );
 }
 

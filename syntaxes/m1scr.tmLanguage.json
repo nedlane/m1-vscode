@@ -103,9 +103,9 @@
       "match": "\\b(Root|This|Parent|In|Out|Library)\\b"
     },
     "member-path-root": {
-      "comment": "Leading identifier of a dotted member path (e.g. Vehicle in Vehicle.SBG.Gyro). The segments after each '.' are handled by #property.",
+      "comment": "Leading identifier of a dotted member path (e.g. Vehicle in Vehicle.SBG.Gyro). The segments after each '.' are handled by #property. M1 names may contain spaces between constituents (Development Manual, Naming Conventions p.64 — e.g. `Switch State.On`), so a single space joins additional word-parts UNLESS the next word is an M1 word-operator (and/or/not/eq/neq), which must stay a keyword. Mirrors language-configuration.json's wordPattern.",
       "name": "variable.other.property.m1scr",
-      "match": "[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\.)"
+      "match": "[A-Za-z_][A-Za-z0-9_]*(?: (?!(?:and|or|not|eq|neq)\\b)[A-Za-z0-9_]+)*(?=\\s*\\.)"
     },
     "function-call": {
       "patterns": [
@@ -116,7 +116,8 @@
       ]
     },
     "property": {
-      "match": "(?<=\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)",
+      "comment": "A member segment after a '.'. M1 names may contain spaces between constituents (Development Manual, Naming Conventions p.64 — e.g. `Fuel.Injector.Pulse Width`), so a single space joins additional word-parts UNLESS the next word is an M1 word-operator (and/or/not/eq/neq), which must stay a keyword. Mirrors language-configuration.json's wordPattern.",
+      "match": "(?<=\\.)\\s*([A-Za-z_][A-Za-z0-9_]*(?: (?!(?:and|or|not|eq|neq)\\b)[A-Za-z0-9_]+)*)",
       "name": "variable.other.property.m1scr"
     },
     "operators": {
