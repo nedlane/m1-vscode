@@ -50,6 +50,34 @@ function expectScope(grammar, line, substr, scopeFragment) {
   }
 }
 
+// Asserts that EVERY character of `substr` is covered by a token carrying a
+// scope containing `scopeFragment`. Unlike expectScope (which only probes the
+// first character), this catches half-highlighted multi-word identifiers where
+// the leading word is scoped but the trailing word(s) fall through unscoped.
+function expectScopeSpan(grammar, line, substr, scopeFragment) {
+  const r = grammar.tokenizeLine(line, vsctm.INITIAL);
+  const start = line.indexOf(substr);
+  if (start === -1) {
+    console.log(`  FAIL  "${substr}" not found in line`);
+    fail++;
+    return;
+  }
+  for (let col = start; col < start + substr.length; col++) {
+    const tok = r.tokens.find((t) => col >= t.startIndex && col < t.endIndex);
+    const scopes = tok ? tok.scopes : [];
+    if (!scopes.some((s) => s.includes(scopeFragment))) {
+      console.log(
+        `  FAIL  "${substr}" expected *${scopeFragment}* across whole span, ` +
+          `but col ${col} ("${line[col]}") got [${scopes.join(", ")}]`,
+      );
+      fail++;
+      return;
+    }
+  }
+  console.log(`  PASS  "${substr}" -> ${scopeFragment} (whole span)`);
+  pass++;
+}
+
 // Asserts the token covering `substr` (or its `occurrence`-th occurrence) does
 // NOT carry a scope containing `scopeFragment`. Used for the relational-vs-type
 // regression (#110): `<`/`>` comparisons must not be scoped as type annotations.
@@ -229,6 +257,52 @@ expectScope(
 );
 // A reference keyword at the head of a path must win over the path-root rule.
 expectScope(grammar, "x = Root.Engine.Rpm;", "Root", "variable.language");
+
+// Space-containing identifiers in a dotted member path (Development Manual,
+// Naming Conventions p.64: "Space may be used between two name constituents",
+// e.g. `Fuel.Injector.Pulse Width = pulseWidth;`). Both the trailing member
+// and a space-containing path ROOT must be scoped across the WHOLE name, not
+// just the first word — this is the fallback users see before semantic tokens
+// arrive / on closed buffers. The corpus uses this pervasively (`Switch State.`
+// x89, `Boot State.` x68, `Rear Right.` x55, ...).
+expectScopeSpan(
+  grammar,
+  "Fuel.Injector.Pulse Width = pulseWidth;",
+  "Pulse Width",
+  "variable.other.property",
+);
+expectScopeSpan(
+  grammar,
+  "local example = Switch State.On;",
+  "Switch State",
+  "variable.other.property",
+);
+expectScopeSpan(
+  grammar,
+  "x = Vehicle.Rear Right.Wheel Speed;",
+  "Rear Right",
+  "variable.other.property",
+);
+expectScopeSpan(
+  grammar,
+  "x = Vehicle.Rear Right.Wheel Speed;",
+  "Wheel Speed",
+  "variable.other.property",
+);
+// A space-containing identifier must NOT swallow a following word operator:
+// `and` stays a word operator and is not absorbed into the identifier span.
+expectScope(
+  grammar,
+  "if (Speed < Min Gear and X) { }",
+  "and",
+  "keyword.operator.word",
+);
+refuteScope(
+  grammar,
+  "if (Speed < Min Gear and X) { }",
+  "and",
+  "variable.other.property",
+);
 
 console.log(`\nResult: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
