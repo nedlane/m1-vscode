@@ -127,11 +127,26 @@ async function withProjectFile(
   }
 }
 
-export function createChannel(context: vscode.ExtensionContext): Promise<void> {
-  return withProjectFile("Create channel", async (projectFile) => {
+/**
+ * Shared flow behind `createChannel` and `createParameter` — the two create
+ * verbs whose prompts are identical: a Root.* fully-qualified name, an optional
+ * storage-type pick, an optional unit, and an optional security level. The
+ * `--type` / `--unit` / `--security` flags are pushed only when the user picked
+ * a real value, so the two commands stay byte-identical in their argv assembly
+ * (mirroring `createFunctionWith` / `setComponentValue`).
+ */
+function createTypedComponent(
+  context: vscode.ExtensionContext,
+  opts: {
+    verb: "create-channel" | "create-parameter";
+    label: string;
+    titleNoun: string;
+  },
+): Promise<void> {
+  return withProjectFile(opts.label, async (projectFile) => {
     const name = await vscode.window.showInputBox({
-      title: "Create M1 Channel",
-      prompt: "Fully-qualified channel name (its parent group must exist)",
+      title: `Create M1 ${opts.titleNoun}`,
+      prompt: `Fully-qualified ${opts.titleNoun.toLowerCase()} name (its parent group must exist)`,
       placeHolder: "Root.Engine.NewSignal",
       validateInput: (v) =>
         /^Root\..+/.test(v.trim())
@@ -143,7 +158,7 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
     }
     const type = await vscode.window.showQuickPick(STORAGE_TYPES_OPTIONAL, {
       title: "Storage type",
-      placeHolder: "Channel storage type (optional)",
+      placeHolder: `${opts.titleNoun} storage type (optional)`,
     });
     if (type === undefined) {
       return undefined;
@@ -162,13 +177,7 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
     if (security === undefined) {
       return undefined;
     }
-    const args = [
-      "create-channel",
-      "--project",
-      projectFile,
-      "--name",
-      name.trim(),
-    ];
+    const args = [opts.verb, "--project", projectFile, "--name", name.trim()];
     if (type !== "(none)") {
       args.push("--type", type);
     }
@@ -179,7 +188,15 @@ export function createChannel(context: vscode.ExtensionContext): Promise<void> {
       args.push("--security", security);
     }
     await runProject(context, args);
-    return `Created channel ${name.trim()}`;
+    return `Created ${opts.titleNoun.toLowerCase()} ${name.trim()}`;
+  });
+}
+
+export function createChannel(context: vscode.ExtensionContext): Promise<void> {
+  return createTypedComponent(context, {
+    verb: "create-channel",
+    label: "Create channel",
+    titleNoun: "Channel",
   });
 }
 
@@ -834,58 +851,10 @@ export function setDisplayRange(
 export function createParameter(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  return withProjectFile("Create parameter", async (projectFile) => {
-    const name = await vscode.window.showInputBox({
-      title: "Create M1 Parameter",
-      prompt: "Fully-qualified parameter name (its parent group must exist)",
-      placeHolder: "Root.Engine.Gain",
-      validateInput: (v) =>
-        /^Root\..+/.test(v.trim())
-          ? undefined
-          : "Name must be fully qualified, e.g. Root.Group.Name",
-    });
-    if (!name) {
-      return undefined;
-    }
-    const type = await vscode.window.showQuickPick(STORAGE_TYPES_OPTIONAL, {
-      title: "Storage type",
-      placeHolder: "Parameter storage type (optional)",
-    });
-    if (type === undefined) {
-      return undefined;
-    }
-    const unit = await vscode.window.showInputBox({
-      title: "Unit (optional)",
-      prompt: "Display unit, e.g. rpm — leave blank for none",
-    });
-    if (unit === undefined) {
-      return undefined;
-    }
-    const security = await vscode.window.showQuickPick(
-      ["(none)", ...(await securityLevels(context))],
-      { title: "Security level (optional)" },
-    );
-    if (security === undefined) {
-      return undefined;
-    }
-    const args = [
-      "create-parameter",
-      "--project",
-      projectFile,
-      "--name",
-      name.trim(),
-    ];
-    if (type !== "(none)") {
-      args.push("--type", type);
-    }
-    if (unit.trim()) {
-      args.push("--unit", unit.trim());
-    }
-    if (security !== "(none)") {
-      args.push("--security", security);
-    }
-    await runProject(context, args);
-    return `Created parameter ${name.trim()}`;
+  return createTypedComponent(context, {
+    verb: "create-parameter",
+    label: "Create parameter",
+    titleNoun: "Parameter",
   });
 }
 
