@@ -10,7 +10,8 @@ updates:
       # makes `vsce package` refuse the build. Only bump it deliberately when we
       # raise engines.vscode. See closed PR #134.
       - dependency-name: "@types/vscode"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
