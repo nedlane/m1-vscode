@@ -35,7 +35,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           # PAT so the branch push / PR is attributed to a real account and can
           # trigger PR checks (GITHUB_TOKEN pushes do not trigger other workflows).
