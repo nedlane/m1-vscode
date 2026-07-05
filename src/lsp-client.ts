@@ -7,6 +7,7 @@ import {
   LanguageClientOptions,
   ServerOptions,
   State,
+  Trace,
   TransportKind,
 } from "vscode-languageclient/node";
 
@@ -86,19 +87,52 @@ const suppressCrash = new Set<string>();
 
 let output: vscode.LogOutputChannel;
 let currentServerPath: string | undefined;
-let buildSettings: () => Record<string, unknown>;
+let buildSettings: (folder?: vscode.Uri) => Record<string, unknown>;
+// Called whenever the set of live clients changes (start / stop / crash) so the
+// status bar can re-render. Kept as a callback (not a direct import of
+// status-bar) so lsp-client stays free of a circular import; extension.ts wires
+// `refreshStatusBar` in via initLspClient.
+let notifyClientsChanged: () => void = () => {};
 
 /**
- * Wire the lifecycle module to the extension's shared output channel and the
- * `buildSettings` helper (kept in extension.ts to avoid a circular import).
- * Must be called once from `activate` before any client is started.
+ * Wire the lifecycle module to the extension's shared output channel, the
+ * `buildSettings` helper and the status-bar refresh (all kept in extension.ts
+ * to avoid a circular import). Must be called once from `activate` before any
+ * client is started.
  */
 export function initLspClient(
   sharedOutput: vscode.LogOutputChannel,
-  settingsFactory: () => Record<string, unknown>,
+  settingsFactory: (folder?: vscode.Uri) => Record<string, unknown>,
+  onClientsChanged: () => void = () => {},
 ): void {
   output = sharedOutput;
   buildSettings = settingsFactory;
+  notifyClientsChanged = onClientsChanged;
+}
+
+/**
+ * Apply the user's `m1.trace.server` level to a running client. The client id is
+ * "m1-lsp", so vscode-languageclient would look for `m1-lsp.trace.server` on its
+ * own; we keep the documented `m1.trace.server` namespace working by bridging it
+ * here. Safe to call before the client is running — setTrace then throws and we
+ * swallow it; it is re-applied after a successful start and on config change.
+ */
+export async function applyTrace(client: LanguageClient): Promise<void> {
+  const level = vscode.workspace
+    .getConfiguration("m1")
+    .get<string>("trace.server", "off");
+  try {
+    await client.setTrace(Trace.fromString(level));
+  } catch {
+    // Client not running yet (or shutting down); re-applied on next start/change.
+  }
+}
+
+/** Re-apply `m1.trace.server` to every running client (config-change handler). */
+export function applyTraceToAll(): void {
+  for (const { client } of clients.values()) {
+    void applyTrace(client);
+  }
 }
 
 /**
@@ -266,9 +300,11 @@ async function startClient(
     synchronize: {
       fileEvents,
     },
-    // The user's m1.* settings (the editor config layer); a workspace
-    // m1-tools.toml, which the server discovers itself, overrides these.
-    initializationOptions: { settings: buildSettings() },
+    // The user's m1.* settings (the editor config layer), read at *this
+    // client's own root* so per-folder overrides in a multi-root workspace
+    // reach the right server; a workspace m1-tools.toml, which the server
+    // discovers itself, overrides these.
+    initializationOptions: { settings: buildSettings(rootUri) },
   };
 
   const client = new LanguageClient(
@@ -287,9 +323,29 @@ async function startClient(
 
   // Detect an unexpected server exit (a crash) and offer to restart just this one.
   client.onDidChangeState((event) => {
+    // A start (or restart-after-crash) reaching Running changes what the status
+    // bar should show; refresh it.
+    if (event.newState === State.Running) {
+      notifyClientsChanged();
+      return;
+    }
     if (event.newState !== State.Stopped || suppressCrash.has(key)) {
       return;
     }
+    // Unexpected exit: drop the dead client from the map so the status bar and
+    // diagnostics stop counting a server that isn't running. (A deliberate stop
+    // is suppressed above and cleaned up by stopClientFor.) Dispose the watchers
+    // to avoid leaking one per watch glob; keep the output channel alive so
+    // "Show Output" still shows the crash — it is disposed on deactivate via
+    // context.subscriptions.
+    const dead = clients.get(key);
+    if (dead && dead.client === client) {
+      clients.delete(key);
+      for (const w of dead.watchers) {
+        w.dispose();
+      }
+    }
+    notifyClientsChanged();
     chan.appendLine("m1-lsp stopped unexpectedly.");
     void vscode.window
       .showErrorMessage(
@@ -310,12 +366,21 @@ async function startClient(
     suppressCrash.delete(key);
     await client.start();
     chan.appendLine("m1-lsp started.");
+    void applyTrace(client);
+    notifyClientsChanged();
   } catch (err) {
     chan.appendLine(`Failed to start m1-lsp: ${String(err)}`);
     void vscode.window.showErrorMessage(
       `Failed to start m1-lsp: ${String(err)}`,
     );
     clients.delete(key);
+    for (const w of fileEvents) {
+      w.dispose();
+    }
+    if (chan !== output) {
+      chan.dispose();
+    }
+    notifyClientsChanged();
   }
 }
 
@@ -338,6 +403,7 @@ async function stopClientFor(key: string): Promise<void> {
     managed.output.dispose();
   }
   suppressCrash.delete(key);
+  notifyClientsChanged();
 }
 
 /** Stop every running client. */
@@ -400,7 +466,8 @@ export function describeClients(context: vscode.ExtensionContext): string {
   }
   for (const { client, root } of managed) {
     const caps = client.initializeResult?.capabilities as
-      Record<string, unknown> | undefined;
+      | Record<string, unknown>
+      | undefined;
     const cap = (key: string): string =>
       caps ? (caps[key] ? "true" : "false") : "(server not started)";
     const projectFile = root ? path.join(root, PROJECT_MARKER) : undefined;

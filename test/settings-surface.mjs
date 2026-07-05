@@ -13,7 +13,12 @@ const read = (p) => fs.readFileSync(path.join(here, "..", p), "utf8");
 const pkg = JSON.parse(read("package.json"));
 const props = pkg.contributes?.configuration?.properties ?? {};
 const contributed = Object.keys(props)
-  .filter((k) => /^m1\.(lint|format|diagnostics)\./.test(k))
+  // m1.lint.path / m1.fmt.path are binary-location settings (consumed by the
+  // task provider via resolveBin), not server-forwarded config, so they have no
+  // buildSettings() mapping — exclude them from the lock-step check.
+  .filter(
+    (k) => /^m1\.(lint|format|diagnostics)\./.test(k) && !k.endsWith(".path"),
+  )
   .map((k) => k.replace(/^m1\./, ""))
   .sort();
 

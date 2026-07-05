@@ -58,6 +58,10 @@ Releases track the server automatically: a daily workflow notices a new
 m1-lsp release, repins, and publishes a new extension version — so the
 bundled server is never stale.
 
+The platform VSIXes also bundle `m1-lint` and `m1-fmt`, which back the
+`m1: lint` / `m1: fmt check` tasks; each resolves the same way (`m1.lint.path`
+/ `m1.fmt.path` setting, then the bundled binary, then `PATH`).
+
 ### Intel macOS and other uncovered platforms
 
 GitHub no longer reliably provides Intel-Mac CI runners, so there is no
@@ -72,6 +76,8 @@ binary. All features then work identically to the bundled builds.
 | -------------------------------- | ---------- | ------------------------------------------------------------------------------------------- |
 | `m1.server.path`                 | `""`       | Absolute path to the `m1-lsp` binary.                                                       |
 | `m1.project.path`                | `""`       | Absolute path to the `m1-project` binary (else bundled/PATH).                               |
+| `m1.lint.path`                   | `""`       | Absolute path to the `m1-lint` binary for the `m1: lint` task (else bundled/PATH).          |
+| `m1.fmt.path`                    | `""`       | Absolute path to the `m1-fmt` binary for the `m1: fmt check` task (else bundled/PATH).      |
 | `m1.trace.server`                | `"off"`    | Trace LSP traffic (`off`/`messages`/`verbose`).                                             |
 | `m1.lint.maxLineLength`          | `88`       | Lint: maximum line length (L001).                                                           |
 | `m1.lint.maxNestingDepth`        | `4`        | Lint: maximum block nesting depth (L008).                                                   |
