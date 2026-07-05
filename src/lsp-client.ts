@@ -466,8 +466,7 @@ export function describeClients(context: vscode.ExtensionContext): string {
   }
   for (const { client, root } of managed) {
     const caps = client.initializeResult?.capabilities as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const cap = (key: string): string =>
       caps ? (caps[key] ? "true" : "false") : "(server not started)";
     const projectFile = root ? path.join(root, PROJECT_MARKER) : undefined;
