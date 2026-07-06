@@ -818,6 +818,7 @@
     "esbuild": "^0.28.1",
     "glob": "^13.0.6",
     "mocha": "^11.7.6",
+    "ovsx": "^1.0.2",
     "prettier": "^3.9.4",
     "typescript": "^6.0.3",
     "vscode-oniguruma": "^2.0.1",

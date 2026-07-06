@@ -163,3 +163,52 @@ jobs:
             --title "m1-vscode $TAG" \
             --notes-file body.md \
             || gh release upload "$TAG" dist-vsix/*.vsix --repo "${{ github.repository }}" --clobber
+
+  # Publish the built VSIXes to the Open VSX Registry (open-vsx.org) — the
+  # registry used by VSCodium, Cursor, Windsurf, Gitpod, and other non-Marketplace
+  # editors. Runs only after the GitHub Release succeeds and reuses the same
+  # artifacts, so the two channels always ship identical bytes.
+  #
+  # Gated on the OPEN_VSX_TOKEN secret: when it is absent (forks, or before the
+  # maintainer opts in) the job no-ops with a notice instead of failing the
+  # release. To enable, create an Open VSX access token for the `m1-tooling`
+  # namespace (https://open-vsx.org/user-settings/tokens) and add it as the repo
+  # secret OPEN_VSX_TOKEN.
+  publish-openvsx:
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist-vsix
+          merge-multiple: true
+      - name: Publish to Open VSX
+        env:
+          OVSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
+        run: |
+          if [ -z "$OVSX_TOKEN" ]; then
+            echo "::notice::OPEN_VSX_TOKEN not set — skipping Open VSX publish."
+            exit 0
+          fi
+          # First publish only: create the namespace. Idempotent — ignore the
+          # "namespace already exists" error on subsequent releases.
+          npx ovsx create-namespace m1-tooling -p "$OVSX_TOKEN" || true
+          # Publish every built VSIX (the three platform targets + the universal
+          # server-less fallback). ovsx reads each VSIX's target from its manifest.
+          shopt -s nullglob
+          published=0
+          for vsix in dist-vsix/*.vsix; do
+            echo "Publishing $vsix to Open VSX…"
+            npx ovsx publish "$vsix" -p "$OVSX_TOKEN"
+            published=$((published + 1))
+          done
+          if [ "$published" -eq 0 ]; then
+            echo "::error::No VSIX artifacts found to publish."
+            exit 1
+          fi
