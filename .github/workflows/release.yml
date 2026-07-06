@@ -55,6 +55,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: node scripts/fetch-project.mjs --target ${{ matrix.rustTarget }}
 
+      - name: Fetch m1-lint for ${{ matrix.rustTarget }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: node scripts/fetch-lint.mjs --target ${{ matrix.rustTarget }}
+
+      - name: Fetch m1-fmt for ${{ matrix.rustTarget }}
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: node scripts/fetch-fmt.mjs --target ${{ matrix.rustTarget }}
+
       - name: Bundle extension
         run: npm run build
 
@@ -134,7 +144,7 @@ jobs:
           | Windows x86_64 | `m1-vscode-win32-x64.vsix` |
           | Anything else (Intel macOS, linux-arm64, …) | `m1-vscode-universal.vsix` |
 
-          The platform VSIXes bundle the matching m1-lsp server and m1-project CLI. The universal VSIX bundles no server — point `m1.server.path` at your own m1-lsp build (see README).
+          The platform VSIXes bundle the matching m1-lsp server, m1-project, m1-lint and m1-fmt CLIs. The universal VSIX bundles no binaries — point `m1.server.path` / `m1.lint.path` / `m1.fmt.path` at your own builds (see README).
           NOTES
           {
             echo ""
@@ -144,6 +154,8 @@ jobs:
             echo "| --- | --- |"
             echo "| m1-lsp | $(grep -o '"serverVersion": "[^"]*"' package.json | cut -d'"' -f4) |"
             echo "| m1-project | $(grep -o '"projectVersion": "[^"]*"' package.json | cut -d'"' -f4) |"
+            echo "| m1-lint | $(grep -o '"lintVersion": "[^"]*"' package.json | cut -d'"' -f4) |"
+            echo "| m1-fmt | $(grep -o '"fmtVersion": "[^"]*"' package.json | cut -d'"' -f4) |"
           } >> body.md
 
           gh release create "$TAG" dist-vsix/*.vsix \

@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.11.7",
+  "version": "0.12.1",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -20,9 +20,13 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.43.1",
+    "serverVersion": "v0.45.1",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.10.0"
+    "projectVersion": "v0.12.0",
+    "lintRepo": "C-Nucifora/m1-lint",
+    "lintVersion": "v0.24.0",
+    "fmtRepo": "C-Nucifora/m1-fmt",
+    "fmtVersion": "v0.17.0"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -98,7 +102,9 @@
       "[m1scr]": {
         "editor.semanticHighlighting.enabled": true,
         "editor.defaultFormatter": "m1-tooling.m1-vscode",
-        "editor.formatOnType": true
+        "editor.formatOnType": true,
+        "editor.insertSpaces": false,
+        "editor.detectIndentation": false
       }
     },
     "commands": [
@@ -527,6 +533,18 @@
           "scope": "machine",
           "description": "Absolute path to the m1-project binary (used by the Create Channel / Set Security / Set Call Rate commands to edit Project.m1prj). If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-project' on PATH."
         },
+        "m1.lint.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to the m1-lint binary (used by the 'm1: lint' task). If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-lint' on PATH."
+        },
+        "m1.fmt.path": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Absolute path to the m1-fmt binary (used by the 'm1: fmt check' task). If empty, the extension uses a bundled binary (server/) and otherwise falls back to 'm1-fmt' on PATH."
+        },
         "m1.trace.server": {
           "type": "string",
           "enum": [
@@ -538,26 +556,31 @@
           "description": "Trace the communication between VS Code and the m1-lsp server."
         },
         "m1.lint.maxLineLength": {
+          "scope": "resource",
           "type": "integer",
           "default": 88,
           "description": "Lint: maximum line length (L001). A workspace m1-tools.toml [lint] overrides this."
         },
         "m1.lint.maxNestingDepth": {
+          "scope": "resource",
           "type": "integer",
           "default": 4,
           "description": "Lint: maximum block nesting depth (L008). A workspace m1-tools.toml [lint] overrides this."
         },
         "m1.lint.maxComplexity": {
+          "scope": "resource",
           "type": "integer",
           "default": 10,
           "description": "Lint: maximum cyclomatic complexity (L009). A workspace m1-tools.toml [lint] overrides this."
         },
         "m1.lint.maxCognitiveComplexity": {
+          "scope": "resource",
           "type": "integer",
           "default": 15,
           "description": "Lint: maximum cognitive complexity (L019). A workspace m1-tools.toml [lint] overrides this."
         },
         "m1.lint.exclude": {
+          "scope": "resource",
           "type": "array",
           "items": {
             "type": "string"
@@ -566,16 +589,19 @@
           "description": "Lint: glob patterns for files to skip. A workspace m1-tools.toml [lint] overrides this."
         },
         "m1.format.lineWidth": {
+          "scope": "resource",
           "type": "integer",
           "default": 88,
           "description": "Formatter: hard column ceiling for wrapping. A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.maxBlankLines": {
+          "scope": "resource",
           "type": "integer",
           "default": 2,
           "description": "Formatter: maximum consecutive blank lines to keep. A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.indentStyle": {
+          "scope": "resource",
           "type": "string",
           "enum": [
             "tab",
@@ -585,11 +611,13 @@
           "description": "Formatter + lint L010: indentation style (the manual mandates tabs). A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.indentWidth": {
+          "scope": "resource",
           "type": "integer",
           "default": 4,
           "description": "Formatter: number of spaces per indent level, used only when indentStyle is \"spaces\" (and for continuation-line alignment math). With the default tab indentation this has no rendering effect — tab display width is the editor's editor.tabSize, not a formatter setting. A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.braceStyle": {
+          "scope": "resource",
           "type": "string",
           "enum": [
             "allman",
@@ -599,21 +627,25 @@
           "description": "Formatter: opening-brace placement (the manual mandates Allman). A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.continuationIndent": {
+          "scope": "resource",
           "type": "integer",
           "default": 1,
           "description": "Formatter: extra indent levels for wrapped continuation lines. A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.alignAssignments": {
+          "scope": "resource",
           "type": "boolean",
           "default": false,
           "description": "Formatter: align the = of contiguous simple assignments (opt-in). A workspace m1-tools.toml [format] overrides this."
         },
         "m1.format.reflowComments": {
+          "scope": "resource",
           "type": "boolean",
           "default": false,
           "description": "Formatter: split over-width // comment lines (opt-in). A workspace m1-tools.toml [format] overrides this."
         },
         "m1.diagnostics.ignore": {
+          "scope": "resource",
           "type": "array",
           "items": {
             "type": "string"
@@ -622,6 +654,7 @@
           "description": "Disable diagnostics by code, from any tool (lint L*, typecheck T*). A workspace m1-tools.toml [diagnostics] overrides this."
         },
         "m1.diagnostics.select": {
+          "scope": "resource",
           "type": "array",
           "items": {
             "type": "string"
@@ -630,6 +663,7 @@
           "description": "If non-empty, run ONLY these diagnostic codes (lint L*, typecheck T*). A workspace m1-tools.toml [diagnostics] overrides this."
         },
         "m1.diagnostics.ignoreSymbols": {
+          "scope": "resource",
           "type": "array",
           "items": {
             "type": "string"
@@ -755,6 +789,8 @@
     "package": "vsce package --no-dependencies -o m1-vscode.vsix",
     "server:fetch": "node scripts/fetch-server.mjs",
     "project:fetch": "node scripts/fetch-project.mjs",
+    "lint:fetch": "node scripts/fetch-lint.mjs",
+    "fmt:fetch": "node scripts/fetch-fmt.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
     "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/create-typed-component-argv.mjs && node test/storage-types-single-source.mjs && node test/validate-diagnostics-dispose.mjs && node test/project-tree-actions.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",

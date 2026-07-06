@@ -5,6 +5,7 @@ import { promisify } from "util";
 import * as vscode from "vscode";
 
 import {
+  applyTraceToAll,
   clients,
   describeClients,
   initLspClient,
@@ -94,7 +95,7 @@ export async function activate(
   });
   context.subscriptions.push(output);
 
-  initLspClient(output, buildSettings);
+  initLspClient(output, buildSettings, refreshStatusBar);
   initProjectCommands(output, context);
 
   // #73 / #75 / #77: status bar, task provider, project explorer — registered
@@ -228,10 +229,22 @@ export async function activate(
       },
     ),
     // Push edited m1.* settings to every running server live (the middle config
-    // layer beneath a workspace m1-tools.toml).
+    // layer beneath a workspace m1-tools.toml). Each client is fed the settings
+    // read at its own project root so per-folder overrides in a multi-root
+    // workspace reach the matching server.
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (affectsM1Settings(e)) {
-        pushSettingsToClients(clients.values(), buildSettings());
+        for (const managed of clients.values()) {
+          const folder = managed.root
+            ? vscode.Uri.file(managed.root)
+            : undefined;
+          pushSettingsToClients([managed], buildSettings(folder));
+        }
+      }
+      // m1.trace.server is bridged to the client's own trace level (the client
+      // id is "m1-lsp", so vscode-languageclient would not read m1.* itself).
+      if (e.affectsConfiguration("m1.trace.server")) {
+        applyTraceToAll();
       }
     }),
     // Add/remove servers as project folders enter or leave the workspace.
@@ -297,13 +310,18 @@ async function showDiagnosticInfo(
  * server's config layer expects (`{ lint, format, diagnostics }`). Only values the
  * user actually set (workspace/global) are included — defaults are left out so the
  * server falls back to its own, and a workspace `m1-tools.toml` can override.
+ *
+ * `folder`, when given, scopes the read to that project root so a per-folder
+ * override (`.vscode/settings.json` in a multi-root workspace, resource-scoped
+ * settings) reaches that root's server rather than every server getting the
+ * global blob (#folder-scope).
  */
-function buildSettings(): {
+function buildSettings(folder?: vscode.Uri): {
   lint: Record<string, unknown>;
   format: Record<string, unknown>;
   diagnostics: Record<string, unknown>;
 } {
-  const cfg = vscode.workspace.getConfiguration("m1");
+  const cfg = vscode.workspace.getConfiguration("m1", folder ?? null);
   const explicit = (key: string): unknown => {
     const i = cfg.inspect(key);
     return i?.workspaceFolderValue ?? i?.workspaceValue ?? i?.globalValue;
