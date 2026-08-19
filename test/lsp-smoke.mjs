@@ -137,12 +137,21 @@ const main = async () => {
 
   // 2) initialized + didOpen
   send({ method: "initialized", params: {} });
+  // didOpen is a notification, so the server may process the following hover
+  // request before it has stored the document. Its first diagnostics publish
+  // proves the open handler completed and makes the smoke test deterministic.
+  const initialDiagnostics = waitFor(
+    (m) =>
+      m.method === "textDocument/publishDiagnostics" && m.params?.uri === uri,
+    "initial diagnostics",
+  );
   send({
     method: "textDocument/didOpen",
     params: {
       textDocument: { uri, languageId: "m1scr", version: 1, text },
     },
   });
+  await initialDiagnostics;
 
   console.log("Requests:");
   // 3) hover on `count` in its declaration (line 1, char 6)
