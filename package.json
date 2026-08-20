@@ -22,7 +22,7 @@
     "serverRepo": "C-Nucifora/m1-lsp",
     "serverVersion": "v0.50.2",
     "projectRepo": "nedlane/m1-project",
-    "projectVersion": "v0.14.0",
+    "projectVersion": "v0.15.0",
     "lintRepo": "C-Nucifora/m1-lint",
     "lintVersion": "v0.24.1",
     "fmtRepo": "C-Nucifora/m1-fmt",
