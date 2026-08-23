@@ -41,7 +41,7 @@ if (missing.length > 0) {
 for (const line of out.split("\n")) {
   const t = line.trim();
   if (t === "" || t.startsWith("#")) continue;
-  if (!/^\[[a-z]+\]$/.test(t) && !/^[a-z_]+ =/.test(t)) {
+  if (!/^\[[a-z]+(?:\.[a-z_]+)*\]$/.test(t) && !/^[a-z_]+ =/.test(t)) {
     console.error(
       `unexpected non-TOML line in scaffold: ${JSON.stringify(line)}`,
     );
