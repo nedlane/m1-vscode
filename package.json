@@ -817,7 +817,7 @@
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.28.2",
     "glob": "^13.0.6",
-    "mocha": "^11.8.0",
+    "mocha": "^12.0.0",
     "prettier": "^3.9.6",
     "typescript": "^7.0.2",
     "vscode-oniguruma": "^2.0.1",
