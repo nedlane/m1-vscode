@@ -18,6 +18,11 @@ it:
 code --install-extension m1-vscode-<platform>.vsix
 ```
 
+Updates use the same installation step: download the latest VSIX and install
+it again. The extension is distributed through GitHub Releases; Marketplace
+and Open VSX publishing are not configured, so this installation does not
+automatically update the extension.
+
 The per-platform VSIXes bundle the matching `m1-lsp` and `m1-project`
 binaries — end users need nothing extra and no network. (Intel macOS and
 other uncovered platforms: see below.)
@@ -54,9 +59,11 @@ The extension resolves `m1-lsp` in this order:
 2. the binary bundled in the extension's `server/` directory,
 3. `m1-lsp` on your `PATH`.
 
-Releases track the server automatically: a daily workflow notices a new
-m1-lsp release, repins, and publishes a new extension version — so the
-bundled server is never stale.
+A daily workflow checks for a new m1-lsp release and opens a server-pin PR.
+That PR needs review and approval; merging it tags a new extension version
+and publishes the platform VSIXes to GitHub Releases. Until it is merged,
+the extension continues to bundle its existing server pin. Standalone
+formatter, linter and project-tool pins are updated separately.
 
 The platform VSIXes also bundle `m1-lint` and `m1-fmt`, which back the
 `m1: lint` / `m1: fmt check` tasks; each resolves the same way (`m1.lint.path`
