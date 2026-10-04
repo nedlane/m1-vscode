@@ -64,11 +64,26 @@ export function resolvePins(pkg, readRelease) {
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo))
       throw new Error(`Invalid repository for ${tool}`);
     const { release, sums } = readRelease(repo);
+    const previous = pkg.m1[`${key}Version`];
+    if (!/^v\d+\.\d+\.\d+$/.test(previous))
+      throw new Error(`${tool}: invalid existing version pin`);
+    const candidate = validateRelease(tool, release, sums);
+    const currentParts = previous.slice(1).split(".").map(BigInt);
+    const candidateParts = candidate.slice(1).split(".").map(BigInt);
+    let comparison = 0;
+    for (let index = 0; index < 3; index++) {
+      if (candidateParts[index] !== currentParts[index]) {
+        comparison = candidateParts[index] > currentParts[index] ? 1 : -1;
+        break;
+      }
+    }
+    // GitHub may mark an older backport as latest; never downgrade a bundle.
     return {
       key,
       tool,
-      previous: pkg.m1[`${key}Version`],
-      latest: validateRelease(tool, release, sums),
+      previous,
+      latest: comparison < 0 ? previous : candidate,
+      ...(comparison < 0 ? { ignoredOlderRelease: candidate } : {}),
     };
   });
 }

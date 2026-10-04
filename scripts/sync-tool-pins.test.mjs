@@ -73,3 +73,26 @@ test("a formatter-only release is proposed even when LSP is unchanged", () => {
   );
   assert.equal(pkg.m1.fmtVersion, "v1.2.3");
 });
+
+test("a latest backport cannot downgrade a bundled tool", () => {
+  const pkg = { m1: {} };
+  const tools = {
+    server: "m1-lsp",
+    fmt: "m1-fmt",
+    lint: "m1-lint",
+    project: "m1-project",
+  };
+  for (const key of Object.keys(tools)) {
+    pkg.m1[`${key}Repo`] = `owner/${tools[key]}`;
+    pkg.m1[`${key}Version`] = key === "fmt" ? "v1.10.0" : "v1.2.3";
+  }
+  const pins = resolvePins(pkg, (repo) =>
+    fixture(repo.split("/")[1], repo.endsWith("m1-fmt") ? "v1.9.99" : "v1.2.3"),
+  );
+  assert.equal(pins.find((pin) => pin.tool === "m1-fmt").latest, "v1.10.0");
+  assert.equal(
+    pins.find((pin) => pin.tool === "m1-fmt").ignoredOlderRelease,
+    "v1.9.99",
+  );
+  assert.equal(pins.filter((pin) => pin.previous !== pin.latest).length, 0);
+});
