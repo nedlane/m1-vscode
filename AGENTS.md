@@ -13,10 +13,11 @@ upstream.
 
 ## Things that are deliberate (don't "fix" them)
 
-- **The server pin is automated.** `sync-server.yml` (daily) repins
-  `m1.serverVersion` in `package.json` to the latest m1-lsp release, bumps
-  the extension version, tags, and `release.yml` publishes per-platform
-  VSIXes with the bundled binaries. Don't hand-edit the pin outside that
+- **The bundled tool pins are automated.** `sync-server.yml` (daily) proposes one reviewed PR for the latest complete
+  m1-lsp, m1-fmt, m1-lint and m1-project releases. It checks all three platform
+  assets and SHA256SUMS before repinning `package.json` and bumping the
+  extension version. After merge, the tag and release workflows publish the
+  per-platform VSIXes. The PR workflow requires `GH_PAT`; it never auto-merges. Don't hand-edit the pin outside that
   flow without a reason.
 - **The client appends `--stdio`** when launching the server
   (vscode-languageclient behaviour). The server must keep accepting it; if
