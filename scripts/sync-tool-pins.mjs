@@ -27,8 +27,21 @@ export function validateRelease(tool, release, sums) {
     throw new Error(`${tool}: expected a published stable vX.Y.Z release`);
   }
   const assets = new Map(release.assets.map((asset) => [asset.name, asset]));
+  if (assets.size !== release.assets.length)
+    throw new Error(`${tool}: duplicate release asset names`);
+  const requireUploaded = (asset) => {
+    if (
+      asset.state !== "uploaded" ||
+      !Number.isSafeInteger(asset.size) ||
+      asset.size <= 0
+    )
+      throw new Error(
+        `${tool}: ${asset.name} is not a complete nonempty upload`,
+      );
+  };
   const manifest = assets.get("SHA256SUMS");
   if (!manifest) throw new Error(`${tool}: release lacks SHA256SUMS`);
+  requireUploaded(manifest);
   if (
     manifest.digest &&
     manifest.digest !==
@@ -49,6 +62,7 @@ export function validateRelease(tool, release, sums) {
     const checksum = checksums.get(name);
     if (!asset || !checksum)
       throw new Error(`${tool}: release lacks binary/checksum for ${name}`);
+    requireUploaded(asset);
     if (asset.digest && asset.digest !== `sha256:${checksum}`) {
       throw new Error(
         `${tool}: asset digest disagrees with SHA256SUMS for ${name}`,

@@ -15,9 +15,16 @@ function fixture(tool, tag = "v1.2.3") {
     release: {
       tag_name: tag,
       assets: [
-        ...names.map((name) => ({ name, digest: `sha256:${checksum}` })),
+        ...names.map((name) => ({
+          name,
+          digest: `sha256:${checksum}`,
+          state: "uploaded",
+          size: 1,
+        })),
         {
           name: "SHA256SUMS",
+          state: "uploaded",
+          size: Buffer.byteLength(sums),
           digest: `sha256:${createHash("sha256").update(sums).digest("hex")}`,
         },
       ],
@@ -95,4 +102,30 @@ test("a latest backport cannot downgrade a bundled tool", () => {
     "v1.9.99",
   );
   assert.equal(pins.filter((pin) => pin.previous !== pin.latest).length, 0);
+});
+
+test("pending, empty and duplicate required assets are incomplete releases", () => {
+  for (const mutate of [
+    (f) => {
+      f.release.assets[0].state = "starter";
+      delete f.release.assets[0].digest;
+    },
+    (f) => {
+      f.release.assets[0].size = 0;
+      delete f.release.assets[0].digest;
+    },
+    (f) => {
+      f.release.assets.push({ ...f.release.assets[0] });
+    },
+    (f) => {
+      f.release.assets.at(-1).state = "starter";
+    },
+    (f) => {
+      f.release.assets.at(-1).size = 0;
+    },
+  ]) {
+    const f = fixture("m1-fmt");
+    mutate(f);
+    assert.throws(() => validateRelease("m1-fmt", f.release, f.sums));
+  }
 });
