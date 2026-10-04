@@ -59,8 +59,17 @@ jobs:
           git checkout -b "$BRANCH"
           git add package.json package-lock.json
           git commit -m "chore: refresh bundled M1 toolchain, release v$NEWVER"
-          # One automation-owned branch is refreshed from main on every run.
-          git push --force origin "$BRANCH"
+          # Preserve reviews when today's proposal has exactly the same files.
+          if git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$BRANCH"
+            if git diff --quiet FETCH_HEAD HEAD -- package.json package-lock.json; then
+              echo "Existing proposal already contains these pins; preserve its reviews."
+            else
+              git push --force-with-lease origin "$BRANCH"
+            fi
+          else
+            git push origin "$BRANCH"
+          fi
           {
             echo "Refresh bundled M1 tools to complete stable releases, each with all three platform assets and matching SHA256SUMS."
             echo ""
