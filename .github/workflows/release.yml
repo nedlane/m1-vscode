@@ -159,6 +159,7 @@ jobs:
           } >> body.md
 
           gh release create "$TAG" dist-vsix/*.vsix \
+            --target "$GITHUB_SHA" \
             --repo "${{ github.repository }}" \
             --title "m1-vscode $TAG" \
             --notes-file body.md \
