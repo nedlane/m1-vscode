@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
+      - name: Test bundled-tool repin release validation
+        run: node --test scripts/sync-tool-pins.test.mjs
       - name: Verify pinned m1-lsp release ships server binaries
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
