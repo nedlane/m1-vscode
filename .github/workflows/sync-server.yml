@@ -65,7 +65,7 @@ jobs:
             if git diff --quiet FETCH_HEAD HEAD -- package.json package-lock.json; then
               echo "Existing proposal already contains these pins; preserve its reviews."
             else
-              git push --force-with-lease origin "$BRANCH"
+              git push --force-with-lease="refs/heads/$BRANCH:$(git rev-parse FETCH_HEAD)" origin "$BRANCH"
             fi
           else
             git push origin "$BRANCH"
