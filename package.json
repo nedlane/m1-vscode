@@ -20,7 +20,7 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.50.3",
+    "serverVersion": "v0.50.4",
     "projectRepo": "nedlane/m1-project",
     "projectVersion": "v0.15.0",
     "lintRepo": "C-Nucifora/m1-lint",
@@ -670,6 +670,12 @@
           },
           "default": [],
           "description": "Suppress a project-level code for one symbol: CODE:Symbol.Path entries (e.g. T050:Root.Engine.Speed). A workspace m1-tools.toml [diagnostics] overrides this."
+        },
+        "m1.format.alignConditions": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": false,
+          "description": "Formatter: align comparisons and logical operators across wrapped conditions (opt-in). A workspace m1-tools.toml [format] overrides this."
         }
       }
     },

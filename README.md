@@ -91,6 +91,7 @@ binary. All features then work identically to the bundled builds.
 | `m1.format.braceStyle`           | `"allman"` | Formatter: opening-brace placement (the manual mandates Allman).                            |
 | `m1.format.continuationIndent`   | `1`        | Formatter: extra indent levels for wrapped continuation lines.                              |
 | `m1.format.alignAssignments`     | `false`    | Formatter: align the `=` of contiguous simple assignments (opt-in).                         |
+| `m1.format.alignConditions`      | `false`    | Formatter: align comparisons and logical operators across wrapped conditions (opt-in).      |
 | `m1.format.reflowComments`       | `false`    | Formatter: split over-width `//` comment lines (opt-in).                                    |
 | `m1.diagnostics.ignore`          | `[]`       | Disable diagnostics by code, any tool (lint `L*`, type `T*`).                               |
 | `m1.diagnostics.select`          | `[]`       | If non-empty, run ONLY these codes.                                                         |
