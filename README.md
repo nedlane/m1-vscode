@@ -59,11 +59,11 @@ The extension resolves `m1-lsp` in this order:
 2. the binary bundled in the extension's `server/` directory,
 3. `m1-lsp` on your `PATH`.
 
-A daily workflow checks for a new m1-lsp release and opens a server-pin PR.
-That PR needs review and approval; merging it tags a new extension version
-and publishes the platform VSIXes to GitHub Releases. Until it is merged,
-the extension continues to bundle its existing server pin. Standalone
-formatter, linter and project-tool pins are updated separately.
+A daily workflow checks all four bundled tools for newer stable releases.
+It opens a toolchain-pin PR after all supported platform assets and their
+checksums are available. That PR needs review and approval; merging it tags
+a new extension version and publishes the platform VSIXes to GitHub
+Releases. Until it is merged, the extension keeps its existing tool pins.
 
 The platform VSIXes also bundle `m1-lint` and `m1-fmt`, which back the
 `m1: lint` / `m1: fmt check` tasks; each resolves the same way (`m1.lint.path`
