@@ -347,6 +347,7 @@ function buildSettings(folder?: vscode.Uri): {
     ["format.braceStyle", "format", "brace_style"],
     ["format.continuationIndent", "format", "continuation_indent"],
     ["format.alignAssignments", "format", "align_assignments"],
+    ["format.alignConditions", "format", "align_conditions"],
     ["format.reflowComments", "format", "reflow_comments"],
     ["diagnostics.ignore", "diagnostics", "ignore"],
     ["diagnostics.select", "diagnostics", "select"],
