@@ -125,6 +125,24 @@ expectScope(grammar, "x = a eq b;", "eq", "keyword.operator.word");
 expectScope(grammar, "local flag = true;", "true", "constant.language.boolean");
 expectScope(grammar, "local n = 42;", "42", "constant.numeric");
 expectScope(grammar, "local f = 1.5;", "1.5", "constant.numeric.float");
+// Match the conservative tree-sitter-m1 v0.8.1 rule: scientific literals
+// require a decimal mantissa. Native rejected 1e-05; the broader rule is inferred.
+for (const literal of ["1.0e-05", "1.0E+05", "1.5e3"]) {
+  expectScopeSpan(
+    grammar,
+    `local f = ${literal};`,
+    literal,
+    "constant.numeric.float",
+  );
+}
+for (const literal of ["1e-05", "1E+05", "1e3"]) {
+  refuteScope(
+    grammar,
+    `local f = ${literal};`,
+    literal,
+    "constant.numeric.float",
+  );
+}
 expectScope(grammar, "local h = 0xFF;", "0xFF", "constant.numeric.hex");
 expectScope(grammar, 'local s = "hi";', '"hi"', "string.quoted.double");
 expectScope(grammar, "// a comment", "// a comment", "comment.line");

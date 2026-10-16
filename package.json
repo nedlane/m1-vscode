@@ -2,7 +2,7 @@
   "name": "m1-vscode",
   "displayName": "M1 Script (.m1scr)",
   "description": "Language support for MoTeC M1 scripts (.m1scr): syntax highlighting plus diagnostics, formatting, hover, go-to-definition, find references, document highlights, symbols, completion, signature help, inlay hints, rename, code-action quick-fixes, folding and semantic tokens via the m1-lsp language server.",
-  "version": "0.12.16",
+  "version": "0.12.17",
   "private": true,
   "publisher": "m1-tooling",
   "license": "GPL-3.0-or-later",
@@ -670,6 +670,12 @@
           },
           "default": [],
           "description": "Suppress a project-level code for one symbol: CODE:Symbol.Path entries (e.g. T050:Root.Engine.Speed). A workspace m1-tools.toml [diagnostics] overrides this."
+        },
+        "m1.format.alignConditions": {
+          "scope": "resource",
+          "type": "boolean",
+          "default": false,
+          "description": "Formatter: align comparisons and logical operators across wrapped conditions (opt-in). A workspace m1-tools.toml [format] overrides this."
         }
       }
     },

@@ -64,10 +64,6 @@
           "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
         },
         {
-          "name": "constant.numeric.float.m1scr",
-          "match": "\\b\\d+[eE][+-]?\\d+\\b"
-        },
-        {
           "name": "constant.numeric.integer.m1scr",
           "match": "\\b\\d+[uU]?\\b"
         }

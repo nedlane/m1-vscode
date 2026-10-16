@@ -2,7 +2,7 @@ name: Release
 
 # Builds one VSIX per platform, each with the matching m1-lsp server binary
 # (pinned via package.json m1.serverVersion) bundled in, and publishes them to a
-# GitHub Release. Triggered by a version tag (pushed by sync-server.yml) or
+# GitHub Release. Triggered by a version tag (pushed by tag-on-version-bump.yml) or
 # manually.
 
 on:
@@ -159,6 +159,7 @@ jobs:
           } >> body.md
 
           gh release create "$TAG" dist-vsix/*.vsix \
+            --target "$GITHUB_SHA" \
             --repo "${{ github.repository }}" \
             --title "m1-vscode $TAG" \
             --notes-file body.md \
