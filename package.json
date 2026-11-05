@@ -678,7 +678,6 @@
         {
           "id": "m1ProjectExplorer",
           "name": "M1 Project",
-          "when": "workspaceContains:**/Project.m1prj",
           "icon": "$(circuit-board)"
         }
       ]

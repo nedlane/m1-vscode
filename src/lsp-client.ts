@@ -294,6 +294,8 @@ async function startClient(
   const clientOptions: LanguageClientOptions = {
     documentSelector,
     outputChannel: chan,
+    // The stopped-state handler owns crash recovery; automatic restarts orphan it.
+    connectionOptions: { maxRestartCount: 0 },
     // Pin the server's root to the project dir. vscode-languageclient derives
     // both rootUri and workspaceFolders from clientOptions.workspaceFolder when set.
     workspaceFolder: rootUri ? { uri: rootUri, name, index: 0 } : undefined,
