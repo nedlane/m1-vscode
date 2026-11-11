@@ -2,7 +2,9 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
+  CloseAction,
   DocumentSelector,
+  ErrorAction,
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
@@ -294,8 +296,14 @@ async function startClient(
   const clientOptions: LanguageClientOptions = {
     documentSelector,
     outputChannel: chan,
-    // The stopped-state handler owns crash recovery; automatic restarts orphan it.
-    connectionOptions: { maxRestartCount: 0 },
+    // The stopped-state handler owns crash recovery and its notification.
+    errorHandler: {
+      error: (_error, _message, count) => ({
+        action:
+          count && count <= 3 ? ErrorAction.Continue : ErrorAction.Shutdown,
+      }),
+      closed: () => ({ action: CloseAction.DoNotRestart, handled: true }),
+    },
     // Pin the server's root to the project dir. vscode-languageclient derives
     // both rootUri and workspaceFolders from clientOptions.workspaceFolder when set.
     workspaceFolder: rootUri ? { uri: rootUri, name, index: 0 } : undefined,
@@ -357,7 +365,7 @@ async function startClient(
       )
       .then((choice) => {
         if (choice === "Restart") {
-          void vscode.commands.executeCommand("m1.restartServer");
+          void syncClients(context);
         } else if (choice === "Show Output") {
           chan.show();
         }
