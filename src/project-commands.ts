@@ -86,7 +86,8 @@ async function runProjectFull(
  */
 function reloadProjectClients(projectFile: string): void {
   const uri = vscode.Uri.file(projectFile).toString();
-  for (const { client } of clients.values()) {
+  for (const { client, owns } of clients.values()) {
+    if (!owns(vscode.Uri.file(projectFile))) continue;
     void client.sendNotification("workspace/didChangeWatchedFiles", {
       changes: [{ uri, type: FileChangeType.Changed }],
     });

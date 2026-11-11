@@ -1,3 +1,4 @@
+import { createLogChannel } from "./log-channel";
 import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
@@ -10,6 +11,8 @@ import {
   describeClients,
   initLspClient,
   resolveServerPath,
+  restartClients,
+  watchProjectRoots,
   stopAllClients,
   syncClients,
 } from "./lsp-client";
@@ -90,9 +93,7 @@ export async function activate(
 ): Promise<M1ExtensionApi> {
   // A log channel (not a plain one): vscode-languageclient ≥10 requires
   // LogOutputChannel for clientOptions.outputChannel.
-  output = vscode.window.createOutputChannel("M1 Language Server", {
-    log: true,
-  });
+  output = createLogChannel("M1 Language Server");
   context.subscriptions.push(output);
 
   initLspClient(output, buildSettings, refreshStatusBar);
@@ -128,8 +129,7 @@ export async function activate(
     // The UI components (status bar, task provider, project explorer) are
     // registered once at activation above and persist across server restarts.
     vscode.commands.registerCommand("m1.restartServer", async () => {
-      await stopAllClients();
-      await syncClients(context);
+      await restartClients(context);
       refreshStatusBar();
     }),
     vscode.commands.registerCommand("m1.showDiagnosticInfo", () =>
@@ -247,12 +247,9 @@ export async function activate(
         applyTraceToAll();
       }
     }),
-    // Add/remove servers as project folders enter or leave the workspace.
-    vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      void syncClients(context);
-    }),
   );
 
+  watchProjectRoots(context);
   await syncClients(context);
 
   return {

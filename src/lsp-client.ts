@@ -1,7 +1,9 @@
 import * as fs from "fs";
+import { createLogChannel } from "./log-channel";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
+  CancellationToken,
   DocumentSelector,
   LanguageClient,
   LanguageClientOptions,
@@ -10,6 +12,8 @@ import {
   Trace,
   TransportKind,
 } from "vscode-languageclient/node";
+
+import { containsPath, ownedPatterns, owningRoot } from "./project-ownership";
 
 import { PROJECT_MARKER, resolveBin, walkUpToProject } from "./utils";
 
@@ -34,6 +38,8 @@ export interface ManagedClient {
    * client is torn down — otherwise every restart/re-sync leaks them.
    */
   watchers: vscode.Disposable[];
+  owns(uri: vscode.Uri): boolean;
+  retire(): void;
 }
 
 /**
@@ -55,17 +61,22 @@ export interface ManagedClient {
 export function buildDocumentSelector(
   rootUri: vscode.Uri | undefined,
   scoped: boolean,
+  roots: readonly string[] = [],
 ): DocumentSelector {
   if (scoped && rootUri) {
-    return [
-      {
-        scheme: "file",
-        language: "m1scr",
-        // The LSP relative-pattern form: an anchored { baseUri, pattern }, not
-        // a bare glob string — see the doc comment above.
-        pattern: { baseUri: rootUri.toString(), pattern: "**/*.m1scr" },
+    const excluded = roots
+      .filter(
+        (root) => root !== rootUri.fsPath && containsPath(rootUri.fsPath, root),
+      )
+      .map((root) => path.relative(rootUri.fsPath, root).split(path.sep));
+    return ownedPatterns(excluded).map(({ base, pattern }) => ({
+      scheme: "file",
+      language: "m1scr",
+      pattern: {
+        baseUri: vscode.Uri.file(path.join(rootUri.fsPath, base)).toString(),
+        pattern,
       },
-    ];
+    }));
   }
   return [
     { scheme: "file", language: "m1scr" },
@@ -87,6 +98,18 @@ const suppressCrash = new Set<string>();
 
 let output: vscode.LogOutputChannel;
 let currentServerPath: string | undefined;
+const projectOutputs = new Map<string, vscode.LogOutputChannel>();
+let lifecycle: Promise<void> = Promise.resolve();
+let shuttingDown = false;
+let rootSnapshot: readonly string[] | undefined;
+
+function enqueue(action: () => Promise<void>): Promise<void> {
+  const next = lifecycle.then(action);
+  lifecycle = next.catch((error) =>
+    output.appendLine(`M1 client lifecycle failed: ${String(error)}`),
+  );
+  return next;
+}
 let buildSettings: (folder?: vscode.Uri) => Record<string, unknown>;
 // Called whenever the set of live clients changes (start / stop / crash) so the
 // status bar can re-render. Kept as a callback (not a direct import of
@@ -106,6 +129,8 @@ export function initLspClient(
   onClientsChanged: () => void = () => {},
 ): void {
   output = sharedOutput;
+  shuttingDown = false;
+  rootSnapshot = undefined;
   buildSettings = settingsFactory;
   notifyClientsChanged = onClientsChanged;
 }
@@ -179,45 +204,154 @@ async function discoverProjectRoots(): Promise<string[]> {
  *   - 2+ roots: one client per root, each scoped to its folder so a `.m1scr`
  *     under root A is served only by A's server (#20).
  */
-export async function syncClients(
+export function syncClients(context: vscode.ExtensionContext): Promise<void> {
+  return enqueue(() => reconcileClients(context, false));
+}
+
+export function restartClients(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  return enqueue(() => reconcileClients(context, true));
+}
+
+async function reconcileClients(
+  context: vscode.ExtensionContext,
+  force: boolean,
+  retryMissing = true,
+): Promise<void> {
+  if (shuttingDown) return;
   const roots = await discoverProjectRoots();
+  if (shuttingDown) return;
+  const changed = JSON.stringify(rootSnapshot) !== JSON.stringify(roots);
+  if (!force && !changed && !retryMissing) return;
+  if (force || changed) {
+    // Retire every provider before registering the new partition. The new
+    // clients' didOpen registrations replay current, possibly unsaved text.
+    for (const managed of clients.values()) managed.retire();
+    for (const key of [...clients.keys()]) await stopClientFor(key);
+    rootSnapshot = roots;
+  }
+  const scoped = roots.length >= 2;
+  for (const root of scoped ? roots : [roots[0]]) {
+    if (shuttingDown) return;
+    const key = scoped ? root : SINGLE;
+    if (!clients.has(key)) await startClient(context, root, scoped, roots);
+  }
+}
 
-  if (roots.length >= 2) {
-    // Multi-root: tear down the single-root client, then one scoped client/root.
-    if (clients.has(SINGLE)) {
-      await stopClientFor(SINGLE);
+/** Track project creation/removal, including markers above an opened folder. */
+export function watchProjectRoots(context: vscode.ExtensionContext): void {
+  let watchers: vscode.Disposable[] = [];
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let heartbeat: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  let eventPending = false;
+  let rescanRequested = false;
+  const scheduleHeartbeat = () => {
+    if (disposed || shuttingDown) return;
+    heartbeat = setTimeout(() => {
+      heartbeat = undefined;
+      if (disposed || shuttingDown) return;
+      // Watcher readiness is not exposed, and events can be lost. Keep one
+      // recovery scan outstanding, with the next due after this one settles.
+      void enqueue(() => reconcileClients(context, false, false))
+        .catch(() => {}) // enqueue already logged the error.
+        .finally(scheduleHeartbeat);
+    }, 1000);
+  };
+  const changed = () => {
+    if (disposed || shuttingDown) return;
+    if (eventPending) {
+      rescanRequested = true;
+      return;
     }
-    const desired = new Set(roots);
-    for (const key of [...clients.keys()]) {
-      if (!desired.has(key)) {
-        await stopClientFor(key);
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = undefined;
+      eventPending = true;
+      void syncClients(context)
+        .catch((error) => {
+          if (!disposed && !shuttingDown)
+            void vscode.window.showErrorMessage(
+              `Failed to refresh M1 projects: ${String(error)}`,
+            );
+        })
+        .finally(() => {
+          eventPending = false;
+          if (rescanRequested) {
+            rescanRequested = false;
+            changed();
+          }
+        });
+    }, 100);
+  };
+  const rebuild = () => {
+    for (const watcher of watchers) watcher.dispose();
+    const ancestors = new Set<string>();
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      for (
+        let dir = path.dirname(folder.uri.fsPath);
+        ;
+        dir = path.dirname(dir)
+      ) {
+        ancestors.add(dir);
+        if (path.dirname(dir) === dir) break;
       }
     }
-    for (const root of roots) {
-      if (!clients.has(root)) {
-        await startClient(context, root, true);
-      }
-    }
-    return;
-  }
-
-  // Single-root / project-less fast path: exactly one client under SINGLE.
-  for (const key of [...clients.keys()]) {
-    if (key !== SINGLE) {
-      await stopClientFor(key);
-    }
-  }
-  const root = roots[0];
-  const existing = clients.get(SINGLE);
-  if (existing && existing.root === root) {
-    return; // already rooted correctly
-  }
-  if (existing) {
-    await stopClientFor(SINGLE);
-  }
-  await startClient(context, root, false);
+    const patterns: vscode.GlobPattern[] = [
+      "**",
+      ...[...ancestors].map(
+        (dir) =>
+          new vscode.RelativePattern(vscode.Uri.file(dir), PROJECT_MARKER),
+      ),
+    ];
+    watchers = patterns.map((pattern) => {
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        pattern,
+        false,
+        true,
+        false,
+      );
+      watcher.onDidCreate((uri) => {
+        // A copied/new directory can arrive as one event without events for
+        // the marker files already inside it.
+        if (path.basename(uri.fsPath) === PROJECT_MARKER) {
+          changed();
+          return;
+        }
+        try {
+          if (fs.statSync(uri.fsPath).isDirectory()) changed();
+        } catch {
+          /* Already removed. */
+        }
+      });
+      watcher.onDidDelete((uri) => {
+        if (
+          path.basename(uri.fsPath) === PROJECT_MARKER ||
+          rootSnapshot?.some((root) => containsPath(uri.fsPath, root))
+        )
+          changed();
+      });
+      return watcher;
+    });
+  };
+  rebuild();
+  scheduleHeartbeat();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      rebuild();
+      changed();
+    }),
+    {
+      dispose() {
+        disposed = true;
+        if (timer) clearTimeout(timer);
+        if (heartbeat) clearTimeout(heartbeat);
+        for (const watcher of watchers) watcher.dispose();
+        projectOutputs.clear();
+      },
+    },
+  );
 }
 
 /**
@@ -229,6 +363,7 @@ async function startClient(
   context: vscode.ExtensionContext,
   root: string | undefined,
   scoped: boolean,
+  roots: readonly string[],
 ): Promise<void> {
   const serverPath = resolveServerPath(context);
   if (!serverPath) {
@@ -249,10 +384,15 @@ async function startClient(
   const key = scoped ? (root as string) : SINGLE;
   const name = root ? path.basename(root) || "m1" : "m1";
   // Scoped clients log to their own channel so output is attributable per project.
-  const chan = scoped
-    ? vscode.window.createOutputChannel(`M1 LSP — ${name}`, { log: true })
-    : output;
-  context.subscriptions.push(chan);
+  let chan = output;
+  if (scoped) {
+    chan = projectOutputs.get(root!)!;
+    if (!chan) {
+      chan = createLogChannel(`M1 LSP — ${name}`);
+      projectOutputs.set(root!, chan);
+      context.subscriptions.push(chan);
+    }
+  }
   chan.appendLine(`Starting m1-lsp: ${serverPath}`);
   chan.appendLine(
     root
@@ -268,7 +408,36 @@ async function startClient(
   const rootUri = root ? vscode.Uri.file(root) : undefined;
   // A scoped client only claims documents under its root; the single client
   // claims every .m1scr (incl. project-less files outside any root).
-  const documentSelector = buildDocumentSelector(rootUri, scoped);
+  const documentSelector = buildDocumentSelector(rootUri, scoped, roots);
+  let active = true;
+  const owns = (uri: vscode.Uri) =>
+    active &&
+    (!scoped ||
+      (uri.scheme === "file" && owningRoot(roots, uri.fsPath) === root));
+  // Config discovery may use a shared ancestor file outside this root.
+  const observes = (uri: vscode.Uri) =>
+    active &&
+    (owns(uri) ||
+      (uri.scheme === "file" &&
+        root !== undefined &&
+        containsPath(path.dirname(uri.fsPath), root) &&
+        (path.extname(uri.fsPath) === ".m1cfg" ||
+          ["m1-tools.toml", ".m1lint.toml", ".m1fmt.toml"].includes(
+            path.basename(uri.fsPath),
+          ))));
+  const requireDefaultSelector = (options: unknown): void => {
+    if (
+      scoped &&
+      options &&
+      typeof options === "object" &&
+      "documentSelector" in options &&
+      options.documentSelector != null
+    ) {
+      throw new Error(
+        "Scoped M1 servers must inherit the client's document selector",
+      );
+    }
+  };
 
   // Watch the script sources plus every file the server's project model is
   // built from, so it is told (via workspace/didChangeWatchedFiles) when any
@@ -285,14 +454,107 @@ async function startClient(
     "**/*.m1dbc",
     "**/m1-tools.toml",
   ];
+  // Workspace folders are already watched recursively; ownership middleware
+  // filters these shared events for each client.
+  const watchRoot =
+    rootUri &&
+    !(vscode.workspace.workspaceFolders ?? []).some((folder) =>
+      containsPath(folder.uri.fsPath, rootUri.fsPath),
+    )
+      ? rootUri
+      : undefined;
   const fileEvents = watchGlobs.map((glob) =>
     vscode.workspace.createFileSystemWatcher(
-      rootUri ? new vscode.RelativePattern(rootUri, glob) : glob,
+      watchRoot ? new vscode.RelativePattern(watchRoot, glob) : glob,
     ),
   );
 
   const clientOptions: LanguageClientOptions = {
     documentSelector,
+    // Recovery must pass through our queue and create a fresh ownership snapshot.
+    connectionOptions: { maxRestartCount: 0 },
+    middleware: {
+      handleDiagnostics(uri, diagnostics, next) {
+        if (owns(uri)) next(uri, diagnostics);
+      },
+      async provideDiagnostics(document, previous, token, next) {
+        const report = await next(document, previous, token);
+        if (!active) return undefined;
+        if (report?.relatedDocuments) {
+          report.relatedDocuments = Object.fromEntries(
+            Object.entries(report.relatedDocuments).filter(([uri]) =>
+              owns(vscode.Uri.parse(uri)),
+            ),
+          );
+        }
+        return report;
+      },
+      async provideWorkspaceDiagnostics(previous, token, report, next) {
+        const result = await next(
+          previous.filter((item) => owns(item.uri)),
+          token,
+          (chunk) =>
+            report(
+              chunk && { items: chunk.items.filter((item) => owns(item.uri)) },
+            ),
+        );
+        return (
+          result && { items: result.items.filter((item) => owns(item.uri)) }
+        );
+      },
+      async provideWorkspaceSymbols(query, token, next) {
+        const symbols = await next(query, token);
+        return symbols?.filter((symbol) => owns(symbol.location.uri));
+      },
+      async provideRenameEdits(document, position, newName, token, next) {
+        if (!active) return undefined;
+        const result = await next(document, position, newName, token);
+        return active ? result : undefined;
+      },
+      async handleRegisterCapability(params, next) {
+        for (const registration of params.registrations)
+          requireDefaultSelector(registration.registerOptions);
+        await next(params, CancellationToken.None);
+      },
+      workspace: {
+        async didChangeWatchedFile(event, next) {
+          if (observes(vscode.Uri.parse(event.uri))) await next(event);
+        },
+        async willRenameFiles(event, next) {
+          const files = event.files.filter((file) => owns(file.oldUri));
+          const result = files.length
+            ? await next({ ...event, files })
+            : undefined;
+          return active ? result : undefined;
+        },
+        async didRenameFiles(event, next) {
+          const files = event.files.filter((file) => owns(file.oldUri));
+          if (files.length) await next({ ...event, files });
+        },
+        async willCreateFiles(event, next) {
+          const files = event.files.filter(owns);
+          const result = files.length
+            ? await next({ ...event, files })
+            : undefined;
+          return active ? result : undefined;
+        },
+        async didCreateFiles(event, next) {
+          const files = event.files.filter(owns);
+          if (files.length) await next({ ...event, files });
+        },
+        async willDeleteFiles(event, next) {
+          const files = event.files.filter(owns);
+          const result = files.length
+            ? await next({ ...event, files })
+            : undefined;
+          return active ? result : undefined;
+        },
+        async didDeleteFiles(event, next) {
+          const files = event.files.filter(owns);
+          if (files.length) await next({ ...event, files });
+        },
+      },
+    },
     outputChannel: chan,
     // Pin the server's root to the project dir. vscode-languageclient derives
     // both rootUri and workspaceFolders from clientOptions.workspaceFolder when set.
@@ -313,18 +575,31 @@ async function startClient(
     serverOptions,
     clientOptions,
   );
+  client.registerFeature({
+    fillClientCapabilities() {},
+    preInitialize(capabilities) {
+      for (const value of Object.values(capabilities))
+        requireDefaultSelector(value);
+    },
+    initialize() {},
+    getState: () => ({ kind: "static" }),
+    clear() {},
+  });
   clients.set(key, {
     client,
     output: chan,
     root,
     documentSelector,
     watchers: fileEvents,
+    owns,
+    retire: () => {
+      active = false;
+    },
   });
 
   // Detect an unexpected server exit (a crash) and offer to restart just this one.
   client.onDidChangeState((event) => {
-    // A start (or restart-after-crash) reaching Running changes what the status
-    // bar should show; refresh it.
+    // A new managed start changes what the status bar should show.
     if (event.newState === State.Running) {
       notifyClientsChanged();
       return;
@@ -340,6 +615,7 @@ async function startClient(
     // context.subscriptions.
     const dead = clients.get(key);
     if (dead && dead.client === client) {
+      dead.retire();
       clients.delete(key);
       for (const w of dead.watchers) {
         w.dispose();
@@ -369,6 +645,7 @@ async function startClient(
     void applyTrace(client);
     notifyClientsChanged();
   } catch (err) {
+    active = false;
     chan.appendLine(`Failed to start m1-lsp: ${String(err)}`);
     void vscode.window.showErrorMessage(
       `Failed to start m1-lsp: ${String(err)}`,
@@ -376,9 +653,6 @@ async function startClient(
     clients.delete(key);
     for (const w of fileEvents) {
       w.dispose();
-    }
-    if (chan !== output) {
-      chan.dispose();
     }
     notifyClientsChanged();
   }
@@ -390,6 +664,7 @@ async function stopClientFor(key: string): Promise<void> {
   if (!managed) {
     return;
   }
+  managed.retire();
   suppressCrash.add(key);
   clients.delete(key);
   await managed.client.stop().catch(() => undefined);
@@ -399,18 +674,20 @@ async function stopClientFor(key: string): Promise<void> {
   for (const w of managed.watchers) {
     w.dispose();
   }
-  if (managed.output !== output) {
-    managed.output.dispose();
-  }
+  // The child process can log its exit after stop resolves. Keep each root's
+  // channel for the extension lifetime and reuse it on subsequent starts.
   suppressCrash.delete(key);
   notifyClientsChanged();
 }
 
 /** Stop every running client. */
-export async function stopAllClients(): Promise<void> {
-  for (const key of [...clients.keys()]) {
-    await stopClientFor(key);
-  }
+export function stopAllClients(): Promise<void> {
+  shuttingDown = true;
+  for (const managed of clients.values()) managed.retire();
+  return enqueue(async () => {
+    for (const key of [...clients.keys()]) await stopClientFor(key);
+    rootSnapshot = undefined;
+  });
 }
 
 /** Build the diagnostic-info text (versions, paths, per-client capabilities). */
