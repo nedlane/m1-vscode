@@ -63,10 +63,9 @@ function verifyProvenance(file, repo) {
     return;
   }
 
-  console.error(
-    `\nProvenance verification FAILED for ${file} (repo ${repo}):\n${out}`,
+  throw new Error(
+    `Provenance verification FAILED for ${file} (repo ${repo}):\n${out}`,
   );
-  process.exit(1);
 }
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -116,35 +115,44 @@ const outFile = path.join(outDir, `m1-lsp${isWindows ? ".exe" : ""}`);
 fs.mkdirSync(outDir, { recursive: true });
 
 console.log(`Fetching ${asset} from ${repo}@${version} -> ${outFile}`);
+const staging = fs.mkdtempSync(
+  path.join(outDir, `.${path.basename(outFile)}-`),
+);
+const downloaded = path.join(staging, path.basename(outFile));
 try {
-  execFileSync(
-    "gh",
-    [
-      "release",
-      "download",
-      version,
-      "--repo",
-      repo,
-      "--pattern",
-      asset,
-      "--output",
-      outFile,
-      "--clobber",
-    ],
-    { stdio: ["ignore", "inherit", "inherit"] },
-  );
+  try {
+    execFileSync(
+      "gh",
+      [
+        "release",
+        "download",
+        version,
+        "--repo",
+        repo,
+        "--pattern",
+        asset,
+        "--output",
+        downloaded,
+      ],
+      { stdio: ["ignore", "inherit", "inherit"] },
+    );
+  } catch (err) {
+    throw new Error(
+      `Failed to download ${asset}. Confirm the release ${version} exists in ${repo} ` +
+        `and that gh is authenticated (GH_TOKEN) with access.\n${String(err)}`,
+    );
+  }
+  verifyProvenance(downloaded, repo);
+  if (!isWindows) {
+    fs.chmodSync(downloaded, 0o755);
+  }
+  // Staging is on the destination filesystem; replacement preserves the old
+  // executable until the new bytes pass verification and permission setup.
+  fs.renameSync(downloaded, outFile);
+  console.log("Done.");
 } catch (err) {
-  console.error(
-    `\nFailed to download ${asset}. Confirm the release ${version} exists in ${repo} ` +
-      `and that gh is authenticated (GH_TOKEN) with access.\n${String(err)}`,
-  );
-  process.exit(1);
+  console.error(String(err));
+  process.exitCode = 1;
+} finally {
+  fs.rmSync(staging, { recursive: true, force: true });
 }
-
-// Verify build provenance before trusting the binary (chmod +x / bundle).
-verifyProvenance(outFile, repo);
-
-if (!isWindows) {
-  fs.chmodSync(outFile, 0o755);
-}
-console.log("Done.");
