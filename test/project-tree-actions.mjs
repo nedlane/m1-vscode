@@ -188,7 +188,10 @@ for (const [id, fnName] of Object.entries(expected)) {
   }
   calls.length = 0;
   const before = refreshCount;
-  const node = { path: `Root.Some.${fnName}` };
+  const node = {
+    path: `Root.Some.${fnName}`,
+    projectFile: "/project/Project.m1prj",
+  };
   await handler(node);
 
   check(

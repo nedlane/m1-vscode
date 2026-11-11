@@ -102,13 +102,16 @@ function reloadProjectClients(projectFile: string): void {
  */
 async function withProjectFile(
   actionName: string,
+  target: string | undefined,
   fn: (projectFile: string) => Promise<string | undefined>,
 ): Promise<void> {
   try {
-    const projectFile = await activeProjectFile();
+    const projectFile = target ?? (await activeProjectFile());
     if (!projectFile || !fs.existsSync(projectFile)) {
       void vscode.window.showErrorMessage(
-        "No Project.m1prj found for the active M1 project.",
+        target
+          ? `Project not found: ${target}`
+          : "No Project.m1prj found for the active M1 project.",
       );
       return;
     }
@@ -143,7 +146,7 @@ function createTypedComponent(
     titleNoun: string;
   },
 ): Promise<void> {
-  return withProjectFile(opts.label, async (projectFile) => {
+  return withProjectFile(opts.label, undefined, async (projectFile) => {
     const name = await vscode.window.showInputBox({
       title: `Create M1 ${opts.titleNoun}`,
       prompt: `Fully-qualified ${opts.titleNoun.toLowerCase()} name (its parent group must exist)`,
@@ -171,7 +174,7 @@ function createTypedComponent(
       return undefined;
     }
     const security = await vscode.window.showQuickPick(
-      ["(none)", ...(await securityLevels(context))],
+      ["(none)", ...(await securityLevels(context, projectFile))],
       { title: "Security level (optional)" },
     );
     if (security === undefined) {
@@ -216,9 +219,10 @@ const DEFAULT_SECURITY = [
  */
 export async function securityLevels(
   context: vscode.ExtensionContext,
+  target?: string,
 ): Promise<string[]> {
   try {
-    const projectFile = await activeProjectFile();
+    const projectFile = target ?? (await activeProjectFile());
     if (projectFile) {
       const out = await runProject(context, [
         "list-security",
@@ -242,8 +246,9 @@ export async function securityLevels(
 export function setChannelSecurity(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Set security", async (projectFile) => {
+  return withProjectFile("Set security", target, async (projectFile) => {
     const component = await pickComponent(
       "Set Component Security",
       preselected,
@@ -252,7 +257,7 @@ export function setChannelSecurity(
       return undefined;
     }
     const security = await vscode.window.showQuickPick(
-      await securityLevels(context),
+      await securityLevels(context, projectFile),
       { title: "Security level" },
     );
     if (!security) {
@@ -272,7 +277,7 @@ export function setChannelSecurity(
 }
 
 export function setCallRate(context: vscode.ExtensionContext): Promise<void> {
-  return withProjectFile("Set call rate", async (projectFile) => {
+  return withProjectFile("Set call rate", undefined, async (projectFile) => {
     const script = await vscode.window.showInputBox({
       title: "Set Script Call Rate",
       prompt: "Fully-qualified script (FuncUser/MethodUser) name",
@@ -363,8 +368,9 @@ const STORAGE_TYPES_OPTIONAL = ["(none)", ...STORAGE_TYPES];
 export function setChannelType(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Set type", async (projectFile) => {
+  return withProjectFile("Set type", target, async (projectFile) => {
     const component = await pickComponent("Set Component Type", preselected);
     if (!component) {
       return undefined;
@@ -392,8 +398,9 @@ export function setChannelType(
 export function setChannelUnit(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Set unit", async (projectFile) => {
+  return withProjectFile("Set unit", target, async (projectFile) => {
     const component = await pickComponent("Set Component Unit", preselected);
     if (!component) {
       return undefined;
@@ -422,8 +429,9 @@ export function setChannelUnit(
 export function createGroup(
   context: vscode.ExtensionContext,
   preselectedParent?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Create group", async (projectFile) => {
+  return withProjectFile("Create group", target, async (projectFile) => {
     const name = await vscode.window.showInputBox({
       title: "Create M1 Group",
       prompt: "Fully-qualified group name (its parent group must exist)",
@@ -452,14 +460,15 @@ export function createGroup(
 export function deleteComponent(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Delete component", async (projectFile) => {
+  return withProjectFile("Delete component", target, async (projectFile) => {
     const component = await pickComponent("Delete Component", preselected);
     if (!component) {
       return undefined;
     }
     const choice = await vscode.window.showWarningMessage(
-      `Delete ${component} from the project?`,
+      `Delete ${component} from ${projectFile}?`,
       {
         modal: true,
         detail:
@@ -491,8 +500,9 @@ export function deleteComponent(
 export function renameComponent(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Rename component", async (projectFile) => {
+  return withProjectFile("Rename component", target, async (projectFile) => {
     const component = await pickComponent("Rename Component", preselected);
     if (!component) {
       return undefined;
@@ -541,7 +551,7 @@ let validateDiagnostics: vscode.DiagnosticCollection | undefined;
 export function validateProject(
   context: vscode.ExtensionContext,
 ): Promise<void> {
-  return withProjectFile("Validate project", async (projectFile) => {
+  return withProjectFile("Validate project", undefined, async (projectFile) => {
     let out: string;
     try {
       out = await runProject(context, ["validate", "--project", projectFile]);
@@ -647,9 +657,10 @@ async function setComponentValue(
     prompt: string;
     placeHolder?: string;
     preselected?: string;
+    target?: string;
   },
 ): Promise<void> {
-  return withProjectFile(opts.label, async (projectFile) => {
+  return withProjectFile(opts.label, opts.target, async (projectFile) => {
     const component = await pickComponent(opts.label, opts.preselected);
     if (!component) {
       return undefined;
@@ -679,6 +690,7 @@ async function setComponentValue(
 export function setQuantity(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
   return setComponentValue(context, {
     label: "Set quantity",
@@ -687,6 +699,7 @@ export function setQuantity(
     prompt: "Physical quantity, e.g. Angular Speed",
     placeHolder: "Angular Speed",
     preselected,
+    target,
   });
 }
 
@@ -694,6 +707,7 @@ export function setQuantity(
 export function setFormat(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
   return setComponentValue(context, {
     label: "Set format",
@@ -702,6 +716,7 @@ export function setFormat(
     prompt: "Display format, e.g. %.1f",
     placeHolder: "%.1f",
     preselected,
+    target,
   });
 }
 
@@ -709,6 +724,7 @@ export function setFormat(
 export function setDps(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
   return setComponentValue(context, {
     label: "Set decimal places",
@@ -717,6 +733,7 @@ export function setDps(
     prompt: "Display decimal places, e.g. 2",
     placeHolder: "2",
     preselected,
+    target,
   });
 }
 
@@ -725,6 +742,7 @@ export function setDps(
 export function addTag(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
   return setComponentValue(context, {
     label: "Add tag",
@@ -732,12 +750,14 @@ export function addTag(
     flag: "--tag",
     prompt: "Tag to add (System/Type tag name)",
     preselected,
+    target,
   });
 }
 
 export function removeTag(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
   return setComponentValue(context, {
     label: "Remove tag",
@@ -745,6 +765,7 @@ export function removeTag(
     flag: "--tag",
     prompt: "Tag to remove",
     preselected,
+    target,
   });
 }
 
@@ -753,8 +774,9 @@ export function removeTag(
 export function setValidation(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Set validation", async (projectFile) => {
+  return withProjectFile("Set validation", target, async (projectFile) => {
     const component = await pickComponent("Set Validation", preselected);
     if (!component) {
       return undefined;
@@ -810,8 +832,9 @@ export function setValidation(
 export function setDisplayRange(
   context: vscode.ExtensionContext,
   preselected?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Set display range", async (projectFile) => {
+  return withProjectFile("Set display range", target, async (projectFile) => {
     const component = await pickComponent("Set Display Range", preselected);
     if (!component) {
       return undefined;
@@ -863,7 +886,7 @@ function createFunctionWith(
   verb: "create-function" | "create-scheduled-function",
   label: string,
 ): Promise<void> {
-  return withProjectFile(label, async (projectFile) => {
+  return withProjectFile(label, undefined, async (projectFile) => {
     const name = await vscode.window.showInputBox({
       title: `${label} (M1)`,
       prompt: "Fully-qualified name (its parent group must exist)",
@@ -940,8 +963,9 @@ async function pickChannel(
 export function createConstant(
   context: vscode.ExtensionContext,
   preselectedParent?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Create constant", async (projectFile) => {
+  return withProjectFile("Create constant", target, async (projectFile) => {
     const name = await vscode.window.showInputBox({
       title: "Create M1 Constant",
       prompt: "Fully-qualified constant name (its parent group must exist)",
@@ -981,8 +1005,9 @@ export function createConstant(
 export function createTable(
   context: vscode.ExtensionContext,
   preselectedParent?: string,
+  target?: string,
 ): Promise<void> {
-  return withProjectFile("Create table", async (projectFile) => {
+  return withProjectFile("Create table", target, async (projectFile) => {
     const name = await vscode.window.showInputBox({
       title: "Create M1 Table",
       prompt: "Fully-qualified table name (its parent group must exist)",
@@ -1063,7 +1088,7 @@ export function createTable(
       }
     }
     const security = await vscode.window.showQuickPick(
-      ["(none)", ...(await securityLevels(context))],
+      ["(none)", ...(await securityLevels(context, projectFile))],
       { title: "Security level (optional)" },
     );
     if (security === undefined) {

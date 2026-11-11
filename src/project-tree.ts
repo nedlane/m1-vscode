@@ -2,6 +2,7 @@
 // TreeView, fed by `m1-project list-components --json` so it works with or
 // without a running language server. Context-menu actions reuse the
 // m1-project commands with the node's path pre-selected.
+import * as path from "path";
 import * as vscode from "vscode";
 
 import { ComponentEntry, listComponents } from "./project-commands";
@@ -9,6 +10,7 @@ import { ComponentEntry, listComponents } from "./project-commands";
 class ComponentNode extends vscode.TreeItem {
   constructor(
     public readonly path: string,
+    public readonly projectFile: string,
     public readonly entry: ComponentEntry | undefined,
     hasChildren: boolean,
   ) {
@@ -58,12 +60,14 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
   readonly onDidChangeTreeData = this.emitter.event;
 
   /** path → entry, plus a child index by parent path. */
+  private projectFile: string | undefined;
   private byPath = new Map<string, ComponentEntry>();
   private children = new Map<string, Set<string>>();
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   refresh(): void {
+    this.projectFile = undefined;
     this.byPath.clear();
     this.children.clear();
     this.emitter.fire(undefined);
@@ -77,16 +81,21 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
     if (!result) {
       return;
     }
+    const byPath = new Map<string, ComponentEntry>();
+    const children = new Map<string, Set<string>>();
     for (const entry of result.components) {
-      this.byPath.set(entry.path, entry);
+      byPath.set(entry.path, entry);
       const parent = entry.path.includes(".")
         ? entry.path.slice(0, entry.path.lastIndexOf("."))
         : "";
-      if (!this.children.has(parent)) {
-        this.children.set(parent, new Set());
+      if (!children.has(parent)) {
+        children.set(parent, new Set());
       }
-      this.children.get(parent)?.add(entry.path);
+      children.get(parent)?.add(entry.path);
     }
+    this.byPath = byPath;
+    this.children = children;
+    this.projectFile = result.projectFile;
   }
 
   getTreeItem(node: ComponentNode): vscode.TreeItem {
@@ -95,43 +104,50 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
 
   async getChildren(node?: ComponentNode): Promise<ComponentNode[]> {
     await this.load();
+    const projectFile = this.projectFile;
+    if (!projectFile || (node && node.projectFile !== projectFile)) {
+      return [];
+    }
     const parent = node?.path ?? "";
     const kids = [...(this.children.get(parent) ?? [])].sort();
     // The synthetic top level holds `Root` (and any stray top-level names).
     return kids.map(
-      (p) => new ComponentNode(p, this.byPath.get(p), this.children.has(p)),
+      (p) =>
+        new ComponentNode(
+          p,
+          projectFile,
+          this.byPath.get(p),
+          this.children.has(p),
+        ),
     );
   }
 }
+
+type ProjectCommand = (
+  context: vscode.ExtensionContext,
+  selection?: string,
+  projectFile?: string,
+) => Promise<void>;
 
 /** Register the view + its refresh / context-menu commands. */
 export function registerProjectTree(
   context: vscode.ExtensionContext,
   commands: {
-    setType: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setUnit: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setSecurity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    createGroup: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    createConstant: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    createTable: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    deleteComponent: (
-      c: vscode.ExtensionContext,
-      sel?: string,
-    ) => Promise<void>;
-    renameComponent: (
-      c: vscode.ExtensionContext,
-      sel?: string,
-    ) => Promise<void>;
-    setValidation: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setQuantity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setFormat: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setDps: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setDisplayRange: (
-      c: vscode.ExtensionContext,
-      sel?: string,
-    ) => Promise<void>;
-    addTag: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    removeTag: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    setType: ProjectCommand;
+    setUnit: ProjectCommand;
+    setSecurity: ProjectCommand;
+    createGroup: ProjectCommand;
+    createConstant: ProjectCommand;
+    createTable: ProjectCommand;
+    deleteComponent: ProjectCommand;
+    renameComponent: ProjectCommand;
+    setValidation: ProjectCommand;
+    setQuantity: ProjectCommand;
+    setFormat: ProjectCommand;
+    setDps: ProjectCommand;
+    setDisplayRange: ProjectCommand;
+    addTag: ProjectCommand;
+    removeTag: ProjectCommand;
   },
 ): void {
   const provider = new ProjectTreeProvider(context);
@@ -141,9 +157,7 @@ export function registerProjectTree(
   // tree. Table-drive them so a new action is one row, not a copy-pasted
   // wrapper (which risks a wrong-function or missing-refresh slip).
   //   #92 set* verbs · #81 createGroup/rename/delete · #98 createConstant/Table
-  const treeActions: ReadonlyArray<
-    [string, (c: vscode.ExtensionContext, sel?: string) => Promise<void>]
-  > = [
+  const treeActions: ReadonlyArray<[string, ProjectCommand]> = [
     ["m1.projectTree.setType", commands.setType],
     ["m1.projectTree.setUnit", commands.setUnit],
     ["m1.projectTree.setValidation", commands.setValidation],
@@ -169,7 +183,17 @@ export function registerProjectTree(
     ),
     ...treeActions.map(([id, fn]) =>
       vscode.commands.registerCommand(id, async (node: ComponentNode) => {
-        await fn(context, node?.path);
+        if (
+          node &&
+          (typeof node.projectFile !== "string" ||
+            !path.isAbsolute(node.projectFile))
+        ) {
+          void vscode.window.showErrorMessage(
+            "The selected component has no valid project. Refresh the Project Explorer and try again.",
+          );
+          return;
+        }
+        await fn(context, node?.path, node?.projectFile);
         provider.refresh();
       }),
     ),
