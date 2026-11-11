@@ -11,6 +11,7 @@ class ComponentNode extends vscode.TreeItem {
     public readonly path: string,
     public readonly entry: ComponentEntry | undefined,
     hasChildren: boolean,
+    public readonly projectFile: string | undefined,
   ) {
     super(
       path.split(".").pop() ?? path,
@@ -58,6 +59,7 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
   readonly onDidChangeTreeData = this.emitter.event;
 
   /** path → entry, plus a child index by parent path. */
+  private projectFile: string | undefined;
   private byPath = new Map<string, ComponentEntry>();
   private children = new Map<string, Set<string>>();
 
@@ -77,6 +79,7 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
     if (!result) {
       return;
     }
+    this.projectFile = result.projectFile;
     for (const entry of result.components) {
       this.byPath.set(entry.path, entry);
       const parent = entry.path.includes(".")
@@ -99,39 +102,42 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
     const kids = [...(this.children.get(parent) ?? [])].sort();
     // The synthetic top level holds `Root` (and any stray top-level names).
     return kids.map(
-      (p) => new ComponentNode(p, this.byPath.get(p), this.children.has(p)),
+      (p) =>
+        new ComponentNode(
+          p,
+          this.byPath.get(p),
+          this.children.has(p),
+          this.projectFile,
+        ),
     );
   }
 }
+
+type ProjectCommand = (
+  context: vscode.ExtensionContext,
+  selected?: string,
+  expectedProjectFile?: string,
+) => Promise<void>;
 
 /** Register the view + its refresh / context-menu commands. */
 export function registerProjectTree(
   context: vscode.ExtensionContext,
   commands: {
-    setType: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setUnit: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setSecurity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    createGroup: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    createConstant: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    createTable: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    deleteComponent: (
-      c: vscode.ExtensionContext,
-      sel?: string,
-    ) => Promise<void>;
-    renameComponent: (
-      c: vscode.ExtensionContext,
-      sel?: string,
-    ) => Promise<void>;
-    setValidation: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setQuantity: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setFormat: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setDps: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    setDisplayRange: (
-      c: vscode.ExtensionContext,
-      sel?: string,
-    ) => Promise<void>;
-    addTag: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
-    removeTag: (c: vscode.ExtensionContext, sel?: string) => Promise<void>;
+    setType: ProjectCommand;
+    setUnit: ProjectCommand;
+    setSecurity: ProjectCommand;
+    createGroup: ProjectCommand;
+    createConstant: ProjectCommand;
+    createTable: ProjectCommand;
+    deleteComponent: ProjectCommand;
+    renameComponent: ProjectCommand;
+    setValidation: ProjectCommand;
+    setQuantity: ProjectCommand;
+    setFormat: ProjectCommand;
+    setDps: ProjectCommand;
+    setDisplayRange: ProjectCommand;
+    addTag: ProjectCommand;
+    removeTag: ProjectCommand;
   },
 ): void {
   const provider = new ProjectTreeProvider(context);
@@ -141,9 +147,7 @@ export function registerProjectTree(
   // tree. Table-drive them so a new action is one row, not a copy-pasted
   // wrapper (which risks a wrong-function or missing-refresh slip).
   //   #92 set* verbs · #81 createGroup/rename/delete · #98 createConstant/Table
-  const treeActions: ReadonlyArray<
-    [string, (c: vscode.ExtensionContext, sel?: string) => Promise<void>]
-  > = [
+  const treeActions: ReadonlyArray<[string, ProjectCommand]> = [
     ["m1.projectTree.setType", commands.setType],
     ["m1.projectTree.setUnit", commands.setUnit],
     ["m1.projectTree.setValidation", commands.setValidation],
@@ -169,7 +173,7 @@ export function registerProjectTree(
     ),
     ...treeActions.map(([id, fn]) =>
       vscode.commands.registerCommand(id, async (node: ComponentNode) => {
-        await fn(context, node?.path);
+        await fn(context, node?.path, node?.projectFile);
         provider.refresh();
       }),
     ),
