@@ -26,7 +26,7 @@
     "lintRepo": "C-Nucifora/m1-lint",
     "lintVersion": "v0.24.1",
     "fmtRepo": "C-Nucifora/m1-fmt",
-    "fmtVersion": "v0.18.2"
+    "fmtVersion": "v0.18.3"
   },
   "main": "./dist/extension.js",
   "activationEvents": [
