@@ -20,11 +20,11 @@
   },
   "m1": {
     "serverRepo": "C-Nucifora/m1-lsp",
-    "serverVersion": "v0.50.4",
+    "serverVersion": "v0.50.5",
     "projectRepo": "nedlane/m1-project",
     "projectVersion": "v0.16.0",
     "lintRepo": "C-Nucifora/m1-lint",
-    "lintVersion": "v0.24.1",
+    "lintVersion": "v0.24.2",
     "fmtRepo": "C-Nucifora/m1-fmt",
     "fmtVersion": "v0.18.3"
   },
