@@ -684,7 +684,6 @@
         {
           "id": "m1ProjectExplorer",
           "name": "M1 Project",
-          "when": "workspaceContains:**/Project.m1prj",
           "icon": "$(circuit-board)"
         }
       ]
@@ -798,7 +797,7 @@
     "lint:fetch": "node scripts/fetch-lint.mjs",
     "fmt:fetch": "node scripts/fetch-fmt.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
-    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/create-typed-component-argv.mjs && node test/storage-types-single-source.mjs && node test/validate-diagnostics-dispose.mjs && node test/project-tree-actions.mjs && node test/lsp-smoke.mjs",
+    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/create-typed-component-argv.mjs && node test/storage-types-single-source.mjs && node test/validate-diagnostics-dispose.mjs && node test/project-tree-actions.mjs && node test/lsp-crash-recovery.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
     "test:contributes": "node test/contributes.mjs",
     "test:scaffold": "node test/scaffold.mjs",
@@ -809,7 +808,7 @@
     "test:integration:multiroot": "node test/integration/runTest-multiroot.cjs"
   },
   "dependencies": {
-    "vscode-languageclient": "^10.1.2"
+    "vscode-languageclient": "^11.0.0"
   },
   "overridesComment": "Dev-only (mocha) transitive advisories: force patched diff (>=8.0.3, GHSA-73rr-hh4g-fpgx) and serialize-javascript (>=7.0.5, GHSA-5c6j-r48x-rmvq / GHSA-qj8w-gfj5-8c6v). Test-runner deps only — nothing here is bundled into the published VSIX.",
   "overrides": {
@@ -817,14 +816,14 @@
     "serialize-javascript": "^7.0.5"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
+    "@types/node": "^26.6.6",
     "@types/vscode": "^1.91.0",
     "@vscode/test-electron": "^3.1.0",
-    "@vscode/vsce": "^4.0.0",
+    "@vscode/vsce": "^4.1.0",
     "esbuild": "^0.28.2",
-    "glob": "^13.0.6",
+    "glob": "^14.0.4",
     "mocha": "^12.0.2",
-    "prettier": "^3.9.9",
+    "prettier": "^3.9.10",
     "typescript": "^7.0.2",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"
