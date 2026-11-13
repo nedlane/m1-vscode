@@ -678,7 +678,6 @@
         {
           "id": "m1ProjectExplorer",
           "name": "M1 Project",
-          "when": "workspaceContains:**/Project.m1prj",
           "icon": "$(circuit-board)"
         }
       ]
@@ -792,11 +791,11 @@
     "lint:fetch": "node scripts/fetch-lint.mjs",
     "fmt:fetch": "node scripts/fetch-fmt.mjs",
     "server:verify": "node scripts/verify-server-pin.mjs",
-    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/create-typed-component-argv.mjs && node test/storage-types-single-source.mjs && node test/validate-diagnostics-dispose.mjs && node test/project-tree-actions.mjs && node test/project-tree-project.mjs && node --test test/fetch-atomic.mjs && node test/lsp-ownership.mjs && node test/lsp-routing.mjs && node test/lsp-smoke.mjs",
+    "test": "node test/grammar-tokenize.mjs && node test/contributes.mjs && node test/word-pattern.mjs && node test/settings-surface.mjs && node scripts/check-readme-commands.mjs && node scripts/check-readme-settings.mjs && node test/tasks-multiroot.mjs && node test/pick-channel-reuse.mjs && node test/create-typed-component-argv.mjs && node test/storage-types-single-source.mjs && node test/validate-diagnostics-dispose.mjs && node test/project-tree-actions.mjs && node test/project-tree-project.mjs && node --test test/fetch-atomic.mjs && node test/lsp-ownership.mjs && node test/lsp-routing.mjs && node test/lsp-crash-recovery.mjs && node test/lsp-smoke.mjs",
     "test:grammar": "node test/grammar-tokenize.mjs",
     "test:contributes": "node test/contributes.mjs",
     "test:scaffold": "node test/scaffold.mjs",
-    "test:lsp": "node test/lsp-smoke.mjs",
+    "test:lsp": "node test/lsp-crash-recovery.mjs && node test/lsp-smoke.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:integration": "node test/integration/runTest.cjs",

@@ -24,7 +24,7 @@ for (const [script, tool] of [
         const gh = path.join(bin, "gh");
         fs.writeFileSync(
           gh,
-          `#!/usr/bin/env node\nconst fs=require('fs');const a=process.argv.slice(2);if(a[0]==='release'){fs.writeFileSync(a[a.indexOf('--output')+1],'REPLACEMENT');process.exit(process.env.FETCH_TEST_MODE==='download-failure'?1:0);}if(process.env.FETCH_TEST_MODE==='verification-failure'){console.error('attestation verification failed: digest mismatch');process.exit(1);}process.exit(0);\n`,
+          `#!/usr/bin/env node\nconst fs=require('fs');const crypto=require('crypto');const a=process.argv.slice(2);if(a[0]==='release'){const name=a[a.indexOf('--pattern')+1];fs.writeFileSync(a[a.indexOf('--output')+1],name==='SHA256SUMS'?crypto.createHash('sha256').update('REPLACEMENT').digest('hex')+'  '+process.env.FETCH_TEST_ASSET+'\\n':'REPLACEMENT');process.exit(process.env.FETCH_TEST_MODE==='download-failure'?1:0);}if(process.env.FETCH_TEST_MODE==='verification-failure'){console.error('attestation verification failed: digest mismatch');process.exit(1);}process.exit(0);\n`,
           { mode: 0o755 },
         );
         for (const target of [
@@ -55,6 +55,11 @@ for (const [script, tool] of [
                     ...process.env,
                     PATH: bin + path.delimiter + process.env.PATH,
                     FETCH_TEST_MODE: mode,
+                    FETCH_TEST_ASSET:
+                      tool +
+                      "-" +
+                      target +
+                      (target.includes("windows") ? ".exe" : ""),
                   },
                   encoding: "utf8",
                   timeout: 10000,
