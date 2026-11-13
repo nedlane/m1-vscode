@@ -514,6 +514,7 @@ async function startClient(
         return active ? result : undefined;
       },
       async handleRegisterCapability(params, next) {
+        if (!active) return;
         for (const registration of params.registrations)
           requireDefaultSelector(registration.registerOptions);
         await next(params, CancellationToken.None);
@@ -609,6 +610,7 @@ async function startClient(
 
   // Detect an unexpected server exit (a crash) and offer to restart just this one.
   client.onDidChangeState((event) => {
+    if (!active) return;
     // A new managed start changes what the status bar should show.
     if (event.newState === State.Running) {
       notifyClientsChanged();

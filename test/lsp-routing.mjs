@@ -324,6 +324,24 @@ try {
   fs.unlinkSync(markers[1]);
   discovered = [uri(markers[0])];
   await mod.syncClients(context);
+  p.onState({ newState: 3 });
+  assert.equal(
+    messages.length,
+    0,
+    "retired clients cannot prompt for recovery",
+  );
+  let staleRegistrations = 0;
+  await p.options.middleware.handleRegisterCapability(
+    { registrations: [{ registerOptions: {} }] },
+    async () => {
+      staleRegistrations++;
+    },
+  );
+  assert.equal(
+    staleRegistrations,
+    0,
+    "retired clients cannot register providers",
+  );
   assert.deepEqual(
     log.slice(2),
     [
