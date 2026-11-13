@@ -2,6 +2,7 @@
 // TreeView, fed by `m1-project list-components --json` so it works with or
 // without a running language server. Context-menu actions reuse the
 // m1-project commands with the node's path pre-selected.
+import * as path from "path";
 import * as vscode from "vscode";
 
 import { ComponentEntry, listComponents } from "./project-commands";
@@ -9,9 +10,9 @@ import { ComponentEntry, listComponents } from "./project-commands";
 class ComponentNode extends vscode.TreeItem {
   constructor(
     public readonly path: string,
+    public readonly projectFile: string,
     public readonly entry: ComponentEntry | undefined,
     hasChildren: boolean,
-    public readonly projectFile: string | undefined,
   ) {
     super(
       path.split(".").pop() ?? path,
@@ -66,6 +67,7 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   refresh(): void {
+    this.projectFile = undefined;
     this.byPath.clear();
     this.children.clear();
     this.emitter.fire(undefined);
@@ -79,17 +81,21 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
     if (!result) {
       return;
     }
-    this.projectFile = result.projectFile;
+    const byPath = new Map<string, ComponentEntry>();
+    const children = new Map<string, Set<string>>();
     for (const entry of result.components) {
-      this.byPath.set(entry.path, entry);
+      byPath.set(entry.path, entry);
       const parent = entry.path.includes(".")
         ? entry.path.slice(0, entry.path.lastIndexOf("."))
         : "";
-      if (!this.children.has(parent)) {
-        this.children.set(parent, new Set());
+      if (!children.has(parent)) {
+        children.set(parent, new Set());
       }
-      this.children.get(parent)?.add(entry.path);
+      children.get(parent)?.add(entry.path);
     }
+    this.byPath = byPath;
+    this.children = children;
+    this.projectFile = result.projectFile;
   }
 
   getTreeItem(node: ComponentNode): vscode.TreeItem {
@@ -98,6 +104,10 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
 
   async getChildren(node?: ComponentNode): Promise<ComponentNode[]> {
     await this.load();
+    const projectFile = this.projectFile;
+    if (!projectFile || (node && node.projectFile !== projectFile)) {
+      return [];
+    }
     const parent = node?.path ?? "";
     const kids = [...(this.children.get(parent) ?? [])].sort();
     // The synthetic top level holds `Root` (and any stray top-level names).
@@ -105,9 +115,9 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
       (p) =>
         new ComponentNode(
           p,
+          projectFile,
           this.byPath.get(p),
           this.children.has(p),
-          this.projectFile,
         ),
     );
   }
@@ -115,8 +125,8 @@ export class ProjectTreeProvider implements vscode.TreeDataProvider<ComponentNod
 
 type ProjectCommand = (
   context: vscode.ExtensionContext,
-  selected?: string,
-  expectedProjectFile?: string,
+  selection?: string,
+  projectFile?: string,
 ) => Promise<void>;
 
 /** Register the view + its refresh / context-menu commands. */
@@ -173,6 +183,16 @@ export function registerProjectTree(
     ),
     ...treeActions.map(([id, fn]) =>
       vscode.commands.registerCommand(id, async (node: ComponentNode) => {
+        if (
+          node &&
+          (typeof node.projectFile !== "string" ||
+            !path.isAbsolute(node.projectFile))
+        ) {
+          void vscode.window.showErrorMessage(
+            "The selected component has no valid project. Refresh the Project Explorer and try again.",
+          );
+          return;
+        }
         await fn(context, node?.path, node?.projectFile);
         provider.refresh();
       }),

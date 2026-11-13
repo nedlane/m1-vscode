@@ -25,6 +25,7 @@ class LanguageClient {
     this.listeners = [];
     created.push(this);
   }
+  registerFeature() {}
   onDidChangeState(listener) {
     this.listeners.push(listener);
   }

@@ -34,8 +34,9 @@ other uncovered platforms: see below.)
   **Format Document**, `editor.formatOnSave` and on-type re-indentation
   (typing `}` snaps the block to the manual's tab + Allman layout) all work
   with no setup.
-- **Multi-root workspaces** — one server per M1 project root, each scoped to
-  its own folder.
+- **Multi-root workspaces** — one server per M1 project root. Nested project
+  files belong to the nearest discovered `Project.m1prj`. Periodic rescans
+  recover project-marker changes missed by filesystem watchers.
 - **M1 Project explorer** — a tree view of the project's component hierarchy
   with context-menu editing actions.
 - **Project editing** — the full `m1-project` verb set as `M1:` commands
@@ -54,9 +55,12 @@ The extension resolves `m1-lsp` in this order:
 2. the binary bundled in the extension's `server/` directory,
 3. `m1-lsp` on your `PATH`.
 
-Releases track the server automatically: a daily workflow notices a new
-m1-lsp release, repins, and publishes a new extension version — so the
-bundled server is never stale.
+A daily workflow proposes a reviewed pull request for new tool releases.
+After that update is merged, the release workflows publish the extension.
+
+With multiple projects, a custom server must inherit the client's document
+selector. Explicit server selectors are rejected because they can overlap
+another project's providers.
 
 The platform VSIXes also bundle `m1-lint` and `m1-fmt`, which back the
 `m1: lint` / `m1: fmt check` tasks; each resolves the same way (`m1.lint.path`

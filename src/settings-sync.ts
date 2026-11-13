@@ -31,15 +31,23 @@ export const DID_CHANGE_CONFIGURATION = "workspace/didChangeConfiguration";
 /**
  * Push `settings` to every managed client via
  * `workspace/didChangeConfiguration`, wrapped as `{ settings }`. Returns the
- * number of clients notified (0 when none are running).
+ * number of notification attempts (0 when none are running). Failures are reported
+ * through `onError` without interrupting updates to other clients.
  */
 export function pushSettingsToClients(
   managed: Iterable<{ client: NotifiableClient }>,
   settings: unknown,
+  onError: (error: unknown) => void = () => {},
 ): number {
   let notified = 0;
   for (const { client } of managed) {
-    void client.sendNotification(DID_CHANGE_CONFIGURATION, { settings });
+    try {
+      void Promise.resolve(
+        client.sendNotification(DID_CHANGE_CONFIGURATION, { settings }),
+      ).catch(onError);
+    } catch (error) {
+      onError(error);
+    }
     notified += 1;
   }
   return notified;

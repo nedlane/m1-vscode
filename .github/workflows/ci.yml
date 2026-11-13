@@ -51,9 +51,6 @@ jobs:
       - name: Type-check
         run: npm run compile
 
-      - name: Grammar tokenization tests
-        run: npm run test:grammar
-
       - name: Bundle
         run: npm run build
 
@@ -70,6 +67,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run project:fetch
+
+      - name: Client regression tests
+        run: npm test
 
       - name: Scaffold-config test
         run: npm run test:scaffold
