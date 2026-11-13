@@ -238,7 +238,9 @@ export async function activate(
           const folder = managed.root
             ? vscode.Uri.file(managed.root)
             : undefined;
-          pushSettingsToClients([managed], buildSettings(folder));
+          pushSettingsToClients([managed], buildSettings(folder), (error) =>
+            output.appendLine(`Failed to update M1 settings: ${String(error)}`),
+          );
         }
       }
       // m1.trace.server is bridged to the client's own trace level (the client
